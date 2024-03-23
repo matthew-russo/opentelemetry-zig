@@ -15,7 +15,7 @@ pub const Logger = struct {
         if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
-            pub fn emitFnImpl(pointer: *anyopaque, log: record.LogRecord) void {
+            pub fn emitImpl(pointer: *anyopaque, log: record.LogRecord) void {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log })
             }
@@ -23,7 +23,7 @@ pub const Logger = struct {
 
         return .{
             .ptr = ptr,
-            .emitFn = gen.emitFnImpl,
+            .emitFn = gen.emitImpl,
         };
     }
 

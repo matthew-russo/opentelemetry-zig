@@ -30,7 +30,7 @@ pub const LoggerProvider = struct {
 
         return .{
             .ptr = ptr,
-            .getLoggerFn = gen.getLoggerFnImpl,
+            .getLoggerFn = gen.getLoggerImpl,
         };
     }
 
