@@ -5,7 +5,7 @@ pub const Logger = struct {
 
     ptr: *anyopaque,
 
-    emitFn: *const fn (*anyopaque, record.LogRecord);
+    emitFn: *const fn (*anyopaque, record.LogRecord) void,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -17,7 +17,7 @@ pub const Logger = struct {
         const gen = struct {
             pub fn emitImpl(pointer: *anyopaque, log: record.LogRecord) void {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log })
+                return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log });
             }
         };
 

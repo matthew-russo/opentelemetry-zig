@@ -6,7 +6,7 @@ pub const LoggerProvider = struct {
 
     ptr: *anyopaque,
 
-    getLoggerFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) logger.Logger;
+    getLoggerFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) logger.Logger,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -21,7 +21,7 @@ pub const LoggerProvider = struct {
                 name: []const u8,
                 version: ?[]const u8,
                 schema_url: ?[]const u8,
-                attributes: []Attribute
+                attributes: []attribute.Attribute,
             ) logger.Logger {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.getLogger, .{ self, name, version, schema_url, attributes });
@@ -34,7 +34,13 @@ pub const LoggerProvider = struct {
         };
     }
 
-    pub fn getLogger(self: *Self, name: []const u8, version: ?[]const u8, schema_url: ?[]const u8, attributes: []Attribute) logger.Logger {
+    pub fn getLogger(
+        self: *Self,
+        name: []const u8,
+        version: ?[]const u8,
+        schema_url: ?[]const u8,
+        attributes: []attribute.Attribute,
+    ) logger.Logger {
         return self.getLoggerFn(self.ptr, name, version, schema_url, attributes);
     }
 };

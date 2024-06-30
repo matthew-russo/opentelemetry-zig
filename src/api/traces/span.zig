@@ -54,6 +54,7 @@ pub const Status = union(enum) {
     Error: []const u8,
 };
 
+// TODO [matthew-russo 03-23-24] this should be an interface
 pub const Span = struct {
     name: []const u8,
     ctx: Context,

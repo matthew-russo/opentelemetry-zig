@@ -16,7 +16,13 @@ pub const MeterProvider = struct {
         if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
-            pub fn getMeterImpl(pointer: *anyopaque, name: []const u8, version: ?[]const u8, schema_url: ?[]const u8, attributes: []attribute.Attribute) meter.Meter {
+            pub fn getMeterImpl(
+                pointer: *anyopaque,
+                name: []const u8,
+                version: ?[]const u8,
+                schema_url: ?[]const u8,
+                attributes: []attribute.Attribute,
+            ) meter.Meter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.getMeter, .{ self, name, version, schema_url, attributes });
             }
@@ -28,7 +34,13 @@ pub const MeterProvider = struct {
         };
     }
 
-    pub fn getMeter(self: *Self, name: []const u8, version: ?[]const u8, schema_url: ?[]const u8, attributes: []attribute.Attribute) meter.Meter {
+    pub fn getMeter(
+        self: *Self,
+        name: []const u8,
+        version: ?[]const u8,
+        schema_url: ?[]const u8,
+        attributes: []attribute.Attribute,
+    ) meter.Meter {
         return self.getMeterFn(self.ptr, name, version, schema_url, attributes);
     }
 };

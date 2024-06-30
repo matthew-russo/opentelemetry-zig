@@ -1,4 +1,5 @@
 const std = @import("std");
+const resource = @import("../resource.zig");
 
 pub const LogTypeList = std.ArrayList(LogType);
 pub const LogTypeMap = std.StringHashMap(LogType);
@@ -106,7 +107,7 @@ pub const LogRecord = struct {
     // ---------------------+------------+------------------------------------
     severity_number: Severity,
     body: LogType,
-    resource: Resource,
+    resource: resource.Resource,
     instrumentation_scope: InstrumentationScope,
     attributes: LogTypeMap,
 };

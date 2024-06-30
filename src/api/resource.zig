@@ -33,7 +33,7 @@ pub const Resource = struct {
 
             pub fn retrieveImpl(pointer: *anyopaque) []const attribute.Attribute {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.retrieve, .{ self });
+                return @call(.always_inline, ptr_info.Pointer.child.retrieve, .{self});
             }
         };
 
@@ -46,16 +46,16 @@ pub const Resource = struct {
         };
     }
 
-    pub fn empty() Self {
+    pub fn empty(self: *Self) Self {
         return self.emptyFn();
     }
 
-    pub fn create(attributes: []attribute.Attribute, schema_url: ?[]const u8) Self {
+    pub fn create(self: *Self, attributes: []attribute.Attribute, schema_url: ?[]const u8) Self {
         return self.createFn(attributes, schema_url);
     }
 
     pub fn merge(updating: *Self, old: Self) Self {
-        return self.mergeFn(updating.ptr, old);
+        return updating.mergeFn(updating.ptr, old);
     }
 
     pub fn retrieve(self: *Self) []const attribute.Attribute {

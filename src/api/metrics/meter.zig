@@ -1,4 +1,4 @@
-const instrument = @import("../instrument.zig");
+const instrument = @import("instrument.zig");
 
 pub const Meter = struct {
     const Self = @This();
@@ -26,7 +26,13 @@ pub const Meter = struct {
         if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
-            pub fn createCounterImpl(pointer: *anyopaque, name: []const u8, unit: ?[]const u8, description: ?[]const u8, advisories: ?[]instrument.AdvisoryParameter) instrument.Counter {
+            pub fn createCounterImpl(
+                pointer: *anyopaque,
+                name: []const u8,
+                unit: ?[]const u8,
+                description: ?[]const u8,
+                advisories: ?[]instrument.AdvisoryParameter,
+            ) instrument.Counter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createCounter, .{ self, name, unit, description, advisories });
             }
