@@ -147,7 +147,7 @@ pub const TraceState = struct {
     values: []std.meta.Tuple(&.{ []const u8, []const u8 }),
 };
 
-pub const Context = struct {
+pub const SpanContext = struct {
     const Self = @This();
 
     trace_id: [16]u8,
@@ -176,7 +176,7 @@ pub const Kind = enum {
 };
 
 pub const Link = struct {
-    ctx: Context,
+    ctx: SpanContext,
     attrs: []attribute.Attribute,
 };
 
@@ -195,7 +195,7 @@ pub const Status = union(enum) {
 // TODO [matthew-russo 03-23-24] this should be an interface
 pub const Span = struct {
     name: []const u8,
-    ctx: Context,
+    ctx: SpanContext,
     parent: ?*Span,
     kind: Kind,
     start: u64,
