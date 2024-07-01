@@ -1,5 +1,82 @@
 const std = @import("std");
+const attribute = @import("../attribute.zig");
 const resource = @import("../resource.zig");
+
+pub const LoggerProvider = struct {
+    const Self = @This();
+
+    ptr: *anyopaque,
+
+    getLoggerFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) Logger,
+
+    pub fn init(ptr: anytype) Self {
+        const Ptr = @TypeOf(ptr);
+        const ptr_info = @typeInfo(Ptr);
+
+        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+
+        const gen = struct {
+            pub fn getLoggerImpl(
+                pointer: *anyopaque,
+                name: []const u8,
+                version: ?[]const u8,
+                schema_url: ?[]const u8,
+                attributes: []attribute.Attribute,
+            ) Logger {
+                const self: Ptr = @ptrCast(@alignCast(pointer));
+                return @call(.always_inline, ptr_info.Pointer.child.getLogger, .{ self, name, version, schema_url, attributes });
+            }
+        };
+
+        return .{
+            .ptr = ptr,
+            .getLoggerFn = gen.getLoggerImpl,
+        };
+    }
+
+    pub fn getLogger(
+        self: *Self,
+        name: []const u8,
+        version: ?[]const u8,
+        schema_url: ?[]const u8,
+        attributes: []attribute.Attribute,
+    ) Logger {
+        return self.getLoggerFn(self.ptr, name, version, schema_url, attributes);
+    }
+};
+
+pub const Logger = struct {
+    const Self = @This();
+
+    ptr: *anyopaque,
+
+    emitFn: *const fn (*anyopaque, LogRecord) void,
+
+    pub fn init(ptr: anytype) Self {
+        const Ptr = @TypeOf(ptr);
+        const ptr_info = @typeInfo(Ptr);
+
+        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+
+        const gen = struct {
+            pub fn emitImpl(pointer: *anyopaque, log: LogRecord) void {
+                const self: Ptr = @ptrCast(@alignCast(pointer));
+                return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log });
+            }
+        };
+
+        return .{
+            .ptr = ptr,
+            .emitFn = gen.emitImpl,
+        };
+    }
+
+    pub fn emit(self: *Self, log: LogRecord) void {
+        return self.emitFn(self.ptr, log);
+    }
+};
 
 pub const LogTypeList = std.ArrayList(LogType);
 pub const LogTypeMap = std.StringHashMap(LogType);
