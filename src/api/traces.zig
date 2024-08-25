@@ -1,7 +1,7 @@
 const std = @import("std");
 
-const attribute = @import("../attribute.zig");
-const context = @import("../context.zig");
+const attribute = @import("./attribute.zig");
+const context = @import("./context.zig");
 
 var global_trace_provider: ?TracerProvider = null;
 
@@ -13,7 +13,7 @@ pub fn unsetDefaultTracerProvider() void {
     global_trace_provider = null;
 }
 
-pub fn getDefaultTracerProvider() ?*TracerProvider {
+pub fn getDefaultTracerProvider() *?TracerProvider {
     return &global_trace_provider;
 }
 
@@ -126,7 +126,7 @@ pub const Tracer = struct {
         attrs: []attribute.Attribute,
         links: []Link,
         start: ?u64,
-    ) void {
+    ) Span {
         return self.createSpanFn(
             self.ptr,
             name,

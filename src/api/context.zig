@@ -6,7 +6,7 @@ pub const Context = struct {
     ptr: *anyopaque,
 
     getValueFn: *const fn (*anyopaque, []const u8) ?ContextValue,
-    withValueFn: *const fn (*anyopaque, []const u8) Self,
+    withValueFn: *const fn (*anyopaque, []const u8, ContextValue) *Self,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -21,7 +21,7 @@ pub const Context = struct {
                 return @call(.always_inline, ptr_info.Pointer.child.getValue, .{ self, name });
             }
 
-            pub fn withValueImpl(pointer: *anyopaque, name: []const u8, value: ContextValue) ptr_info.Pointer.child {
+            pub fn withValueImpl(pointer: *anyopaque, name: []const u8, value: ContextValue) *Self {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.withValue, .{ self, name, value });
             }
@@ -38,7 +38,7 @@ pub const Context = struct {
         return self.getValueFn(self.ptr, name);
     }
 
-    pub fn withValue(self: *Self, name: []const u8, value: ContextValue) Self {
-        return Self.init(self.withValue(self.ptr, name, value));
+    pub fn withValue(self: *Self, name: []const u8, value: ContextValue) *Self {
+        return self.withValueFn(self.ptr, name, value);
     }
 };

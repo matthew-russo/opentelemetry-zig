@@ -1,13 +1,11 @@
-const attribute = @import("../attribute.zig");
-const instrument = @import("instrument.zig");
-const meter = @import("meter.zig");
+const attribute = @import("./attribute.zig");
 
 pub const MeterProvider = struct {
     const Self = @This();
 
     ptr: *anyopaque,
 
-    getMeterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) meter.Meter,
+    getMeterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) Meter,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -23,7 +21,7 @@ pub const MeterProvider = struct {
                 version: ?[]const u8,
                 schema_url: ?[]const u8,
                 attributes: []attribute.Attribute,
-            ) meter.Meter {
+            ) Meter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.getMeter, .{ self, name, version, schema_url, attributes });
             }
@@ -41,7 +39,7 @@ pub const MeterProvider = struct {
         version: ?[]const u8,
         schema_url: ?[]const u8,
         attributes: []attribute.Attribute,
-    ) meter.Meter {
+    ) Meter {
         return self.getMeterFn(self.ptr, name, version, schema_url, attributes);
     }
 };
@@ -56,13 +54,13 @@ pub const Meter = struct {
     // - (optional) unit
     // - (optional) description
     // - (optional) advisories
-    createCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.Counter,
-    createAsyncCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.AsynchronousCounter,
-    createHistogramFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.Histogram,
-    createGaugeFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.Gauge,
-    createAsyncGaugeFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.AsynchronousGauge,
-    createUpDownCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.UpDownCounter,
-    createAsyncUpDownCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const instrument.AdvisoryParameter) instrument.AsynchronousUpDownCounter,
+    createCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) Counter,
+    createAsyncCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) AsyncCounter,
+    createHistogramFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) Histogram,
+    createGaugeFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) Gauge,
+    createAsyncGaugeFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) AsyncGauge,
+    createUpDownCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) UpDownCounter,
+    createAsyncUpDownCounterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, ?[]const AdvisoryParameter) AsyncUpDownCounter,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -77,8 +75,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.Counter {
+                advisories: ?[]AdvisoryParameter,
+            ) Counter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createCounter, .{ self, name, unit, description, advisories });
             }
@@ -88,8 +86,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.AsynchronousCounter {
+                advisories: ?[]AdvisoryParameter,
+            ) AsyncCounter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createAsyncCounter, .{ self, name, unit, description, advisories });
             }
@@ -99,8 +97,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.Histogram {
+                advisories: ?[]AdvisoryParameter,
+            ) Histogram {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createHistogram, .{ self, name, unit, description, advisories });
             }
@@ -110,8 +108,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.Gauge {
+                advisories: ?[]AdvisoryParameter,
+            ) Gauge {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createGauge, .{ self, name, unit, description, advisories });
             }
@@ -121,8 +119,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.AsynchronousGauge {
+                advisories: ?[]AdvisoryParameter,
+            ) AsyncGauge {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createAsyncGauge, .{ self, name, unit, description, advisories });
             }
@@ -132,8 +130,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.UpDownCounter {
+                advisories: ?[]AdvisoryParameter,
+            ) UpDownCounter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createUpDownCounter, .{ self, name, unit, description, advisories });
             }
@@ -143,8 +141,8 @@ pub const Meter = struct {
                 name: []const u8,
                 unit: ?[]const u8,
                 description: ?[]const u8,
-                advisories: ?[]instrument.AdvisoryParameter,
-            ) instrument.AsyncUpDownCounter {
+                advisories: ?[]AdvisoryParameter,
+            ) AsyncUpDownCounter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.createAsyncUpDownCounter, .{ self, name, unit, description, advisories });
             }
@@ -167,8 +165,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.Counter {
+        advisories: ?[]AdvisoryParameter,
+    ) Counter {
         return self.createCounterFn(self.ptr, name, unit, description, advisories);
     }
 
@@ -177,8 +175,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.AsyncCounter {
+        advisories: ?[]AdvisoryParameter,
+    ) AsyncCounter {
         return self.createAsyncCounterFn(self.ptr, name, unit, description, advisories);
     }
 
@@ -187,8 +185,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.Histogram {
+        advisories: ?[]AdvisoryParameter,
+    ) Histogram {
         return self.createHistogramFn(self.ptr, name, unit, description, advisories);
     }
 
@@ -197,8 +195,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.Gauge {
+        advisories: ?[]AdvisoryParameter,
+    ) Gauge {
         return self.createGaugeFn(self.ptr, name, unit, description, advisories);
     }
 
@@ -207,8 +205,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.AsyncGauge {
+        advisories: ?[]AdvisoryParameter,
+    ) AsyncGauge {
         return self.createAsyncGaugeFn(self.ptr, name, unit, description, advisories);
     }
 
@@ -217,8 +215,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.UpDownCounter {
+        advisories: ?[]AdvisoryParameter,
+    ) UpDownCounter {
         return self.createUpDownCounterFn(self.ptr, name, unit, description, advisories);
     }
 
@@ -227,8 +225,8 @@ pub const Meter = struct {
         name: []const u8,
         unit: ?[]const u8,
         description: ?[]const u8,
-        advisories: ?[]instrument.AdvisoryParameter,
-    ) instrument.AsyncUpDownCounter {
+        advisories: ?[]AdvisoryParameter,
+    ) AsyncUpDownCounter {
         return self.createAsyncUpDownCounterFn(self.ptr, name, unit, description, advisories);
     }
 };
@@ -269,11 +267,37 @@ pub const Counter = struct {
     }
 };
 
-pub const AsynchronousCounter = struct {
+pub const AsyncCounter = struct {
     const Self = @This();
 
     instrument: Instrument,
     value: u64,
+};
+
+pub const UpDownCounter = struct {
+    const Self = @This();
+
+    instrument: Instrument,
+    value: u64,
+
+    pub fn add(self: Self, to_add: i64, attrs: ?[]const attribute.Attribute) void {
+        _ = self;
+        _ = to_add;
+        _ = attrs;
+    }
+};
+
+pub const AsyncUpDownCounter = struct {
+    const Self = @This();
+
+    instrument: Instrument,
+    value: u64,
+
+    pub fn add(self: Self, to_add: i64, attrs: ?[]const attribute.Attribute) void {
+        _ = self;
+        _ = to_add;
+        _ = attrs;
+    }
 };
 
 pub const Histogram = struct {
@@ -302,7 +326,7 @@ pub const Gauge = struct {
     }
 };
 
-pub const AsynchronousGauge = struct {
+pub const AsyncGauge = struct {
     const Self = @This();
 
     instrument: Instrument,

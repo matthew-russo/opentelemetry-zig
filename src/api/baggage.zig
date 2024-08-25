@@ -43,7 +43,7 @@ pub const Baggage = struct {
 
     pub fn removeValue(self: *Self, name: []const u8) anyerror!Self {
         var cloned_map = try self.kvps.clone();
-        try cloned_map.remove(name);
+        _ = cloned_map.remove(name);
         return Self{
             .allocator = self.allocator,
             .kvps = cloned_map,

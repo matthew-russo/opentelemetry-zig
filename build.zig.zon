@@ -15,6 +15,11 @@
     // Once all dependencies are fetched, `zig build` no longer requires
     // internet connectivity.
     .dependencies = .{
+        .oasis = .{
+            .url = "https://github.com/matthew-russo/oasis-zig/archive/refs/tags/testing-release.tar.gz",
+            .hash = "1220480c34384889b011128f3d4d6ea835616d7b9d5464b5400a91798ea5f48c38a2",
+        },
+
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
         //.example = .{
         //    // When updating this field to a new URL, be sure to delete the corresponding

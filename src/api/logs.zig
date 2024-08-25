@@ -1,6 +1,7 @@
 const std = @import("std");
-const attribute = @import("../attribute.zig");
-const resource = @import("../resource.zig");
+
+const attribute = @import("./attribute.zig");
+const resource = @import("./resource.zig");
 
 pub const LoggerProvider = struct {
     const Self = @This();
@@ -78,9 +79,6 @@ pub const Logger = struct {
     }
 };
 
-pub const LogTypeList = std.ArrayList(LogType);
-pub const LogTypeMap = std.StringHashMap(LogType);
-
 pub const LogType = union(enum) {
     string: []const u8,
     boolean: bool,
@@ -88,8 +86,8 @@ pub const LogType = union(enum) {
     // double precision (IEEE 754-1985)
     float: f64,
     bytes: []const u8,
-    list: LogTypeList,
-    map: LogTypeMap,
+    list: std.ArrayList(LogType),
+    map: std.StringHashMap(LogType),
 };
 
 pub const Severity = enum(u8) {
@@ -186,5 +184,5 @@ pub const LogRecord = struct {
     body: LogType,
     resource: resource.Resource,
     instrumentation_scope: InstrumentationScope,
-    attributes: LogTypeMap,
+    attributes: std.StringHashMap(LogType),
 };

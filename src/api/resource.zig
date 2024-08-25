@@ -5,7 +5,7 @@ pub const Resource = struct {
 
     ptr: *anyopaque,
 
-    emptyFn: *const fn () *Self,
+    emptyFn: *const fn () Self,
     createFn: *const fn ([]const attribute.Attribute, ?[]const u8) Self,
     mergeFn: *const fn (*anyopaque, Self) Self,
     retrieveFn: *const fn (*anyopaque) []const attribute.Attribute,
@@ -59,6 +59,6 @@ pub const Resource = struct {
     }
 
     pub fn retrieve(self: *Self) []const attribute.Attribute {
-        return self.retrieveFn();
+        return self.retrieveFn(self.ptr);
     }
 };

@@ -1,15 +1,13 @@
 const std = @import("std");
 
-const attribute = @import("../../api/attribute.zig");
-const context = @import("../../api/context.zig");
-const trace_api = @import("../../api/traces.zig");
+const otel_api = @import("opentelemetry-api");
 
 pub const InMemoryTracerProvider = struct {
     const Self = @This();
 
-    allocator: std.mem.allocator,
+    allocator: std.mem.Allocator,
 
-    pub fn init(allocator: std.mem.allocator) Self {
+    pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
         };
@@ -20,10 +18,10 @@ pub const InMemoryTracerProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []attribute.Attribute,
-    ) trace_api.Tracer {
+        attributes: []otel_api.attribute.Attribute,
+    ) otel_api.traces.Tracer {
         // TODO [matthew-russo] handle allocation errors
-        const tracer = self.allocator.create() catch unreachable;
+        const tracer = self.allocator.create(InMemoryTracer) catch unreachable;
         tracer.* = InMemoryTracer{
             .name = name,
             .version = version,
@@ -32,7 +30,7 @@ pub const InMemoryTracerProvider = struct {
         };
         // TODO [matthew-russo] there is no mechanism to clean up
         // the allocated memory once we're done with the Tracer
-        return trace_api.Tracer.init(tracer);
+        return otel_api.traces.Tracer.init(tracer);
     }
 };
 
@@ -42,20 +40,21 @@ pub const InMemoryTracer = struct {
     name: []const u8,
     version: ?[]const u8,
     schema_url: ?[]const u8,
-    attributes: []attribute.Attribute,
+    attributes: []otel_api.attribute.Attribute,
 
     pub fn createSpan(
         self: *Self,
         name: []const u8,
-        ctx: ?context.Context,
-        maybe_kind: ?trace_api.Kind,
-        attrs: []attribute.Attribute,
-        links: []trace_api.Link,
+        ctx: ?otel_api.context.Context,
+        maybe_kind: ?otel_api.traces.Kind,
+        attrs: []otel_api.attribute.Attribute,
+        links: []otel_api.traces.Link,
         maybe_start: ?u64,
-    ) trace_api.Span {
+    ) otel_api.traces.Span {
         _ = self;
+        _ = ctx;
 
-        const kind = if (maybe_kind) |k| k else trace_api.Kind.Internal;
+        const kind = if (maybe_kind) |k| k else otel_api.traces.Kind.Internal;
         const start: u64 = if (maybe_start) |s| s else blk: {
             const nanosecs: u128 = @intCast(std.time.nanoTimestamp());
             const maxU64: u64 = std.math.maxInt(u64);
@@ -64,9 +63,9 @@ pub const InMemoryTracer = struct {
             break :blk @truncate(nanosecs);
         };
 
-        return trace_api.Span{
+        return otel_api.traces.Span{
             .name = name,
-            .ctx = ctx,
+            .ctx = std.debug.panic("todo: convert otel_api.context.Context to SpanContext", .{}),
             .parent = null,
             .kind = kind,
             .start = start,
@@ -74,7 +73,28 @@ pub const InMemoryTracer = struct {
             .attrs = attrs,
             .links = links,
             .events = undefined,
-            .status = trace_api.Status.Unset,
+            .status = otel_api.traces.Status.Unset,
         };
     }
 };
+
+// test "can construct InMemoryTracerProvider" {
+//     _ = InMemoryTracerProvider.init(std.testing.allocator);
+// }
+//
+// test "can get Tracer from InMemoryTracerProvider" {
+//     var tracer_provider = InMemoryTracerProvider.init(std.testing.allocator);
+//     _ = tracer_provider.getTracer(
+//         "test_tracer",
+//         "1.0.0",
+//         "schema_url",
+//         undefined,
+//     );
+// }
+//
+// test "can use InMemoryTracerProvider as a TracerProvider" {
+//     const trace_provider_impl = try std.testing.allocator.create(InMemoryTracerProvider);
+//     defer std.testing.allocator.destroy(trace_provider_impl);
+//     trace_provider_impl.* = InMemoryTracerProvider.init(std.testing.allocator);
+//     _ = otel_api.traces.TracerProvider.init(trace_provider_impl);
+// }

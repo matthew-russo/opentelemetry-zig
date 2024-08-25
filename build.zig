@@ -15,33 +15,60 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "opentelemetry-zig",
+    const api_lib = b.addStaticLibrary(.{
+        .name = "opentelemetry-zig-api",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = b.path("src/root.zig"),
+        .root_source_file = b.path("src/api/root.zig"),
         .target = target,
         .optimize = optimize,
     });
+
+    const sdk_lib = b.addStaticLibrary(.{
+        .name = "opentelemetry-zig-sdk",
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = b.path("src/sdk/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const oasis = b.dependency("oasis", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
+    sdk_lib.root_module.addImport("oasis", oasis.module("oasis"));
+    sdk_lib.root_module.addImport("opentelemetry-api", &api_lib.root_module);
 
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
     // running `zig build`).
-    b.installArtifact(lib);
+    b.installArtifact(api_lib);
+    b.installArtifact(sdk_lib);
 
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/root.zig"),
+    const api_lib_unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/api/root.zig"),
         .target = target,
         .optimize = optimize,
     });
+    const sdk_lib_unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/sdk/root.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    sdk_lib_unit_tests.root_module.addImport("oasis", oasis.module("oasis"));
+    sdk_lib_unit_tests.root_module.addImport("opentelemetry-api", &api_lib.root_module);
 
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+    const run_api_lib_unit_tests = b.addRunArtifact(api_lib_unit_tests);
+    const run_sdk_lib_unit_tests = b.addRunArtifact(sdk_lib_unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
+    test_step.dependOn(&run_api_lib_unit_tests.step);
+    test_step.dependOn(&run_sdk_lib_unit_tests.step);
 }
