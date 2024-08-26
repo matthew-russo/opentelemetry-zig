@@ -33,6 +33,15 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Create a zig module for our library
+    _ = b.addModule("opentelemetry-api", .{
+        .root_source_file = b.path("src/api/root.zig"),
+    });
+
+    _ = b.addModule("opentelemetry-sdk", .{
+        .root_source_file = b.path("src/sdk/root.zig"),
+    });
+
     const oasis = b.dependency("oasis", .{
         .target = target,
         .optimize = optimize,
