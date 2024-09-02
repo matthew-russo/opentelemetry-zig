@@ -32,6 +32,11 @@ pub const InMemoryTracerProvider = struct {
         // the allocated memory once we're done with the Tracer
         return otel_api.traces.Tracer.init(tracer);
     }
+
+    pub fn destroyTracer(self: *Self, tracer: otel_api.traces.Tracer) void {
+        const in_mem_tracer: *InMemoryTracer = @ptrCast(@alignCast(tracer.ptr));
+        self.allocator.destroy(in_mem_tracer);
+    }
 };
 
 pub const InMemoryTracer = struct {
@@ -78,23 +83,38 @@ pub const InMemoryTracer = struct {
     }
 };
 
-// test "can construct InMemoryTracerProvider" {
-//     _ = InMemoryTracerProvider.init(std.testing.allocator);
-// }
-//
-// test "can get Tracer from InMemoryTracerProvider" {
-//     var tracer_provider = InMemoryTracerProvider.init(std.testing.allocator);
-//     _ = tracer_provider.getTracer(
-//         "test_tracer",
-//         "1.0.0",
-//         "schema_url",
-//         undefined,
-//     );
-// }
-//
-// test "can use InMemoryTracerProvider as a TracerProvider" {
-//     const trace_provider_impl = try std.testing.allocator.create(InMemoryTracerProvider);
-//     defer std.testing.allocator.destroy(trace_provider_impl);
-//     trace_provider_impl.* = InMemoryTracerProvider.init(std.testing.allocator);
-//     _ = otel_api.traces.TracerProvider.init(trace_provider_impl);
-// }
+test "can construct InMemoryTracerProvider" {
+    _ = InMemoryTracerProvider.init(std.testing.allocator);
+}
+
+test "can get Tracer from InMemoryTracerProvider" {
+    var tracer_provider = InMemoryTracerProvider.init(std.testing.allocator);
+    const tracer = tracer_provider.getTracer(
+        "test_tracer",
+        "1.0.0",
+        "schema_url",
+        undefined,
+    );
+    defer tracer_provider.destroyTracer(tracer);
+}
+
+test "can use InMemoryTracerProvider as a TracerProvider" {
+    const trace_provider_impl = try std.testing.allocator.create(InMemoryTracerProvider);
+    defer std.testing.allocator.destroy(trace_provider_impl);
+    trace_provider_impl.* = InMemoryTracerProvider.init(std.testing.allocator);
+    _ = otel_api.traces.TracerProvider.init(trace_provider_impl);
+}
+
+test "can get InMemoryTracer while using InMemoryTracerProvider as a TracerProvider" {
+    const trace_provider_impl = try std.testing.allocator.create(InMemoryTracerProvider);
+    defer std.testing.allocator.destroy(trace_provider_impl);
+    trace_provider_impl.* = InMemoryTracerProvider.init(std.testing.allocator);
+    var tracer_provider = otel_api.traces.TracerProvider.init(trace_provider_impl);
+    const tracer = tracer_provider.getTracer(
+        "test_tracer",
+        "1.0.0",
+        "schema_url",
+        undefined,
+    );
+    defer tracer_provider.destroyTracer(tracer);
+}

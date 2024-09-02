@@ -30,6 +30,10 @@ pub const TracerProvider = struct {
         []attribute.Attribute,
     ) Tracer,
 
+    destroyTracerFn: *const fn (*anyopaque, Tracer) void,
+
+    /// Construct a new TracerProvider using the concrete implementation
+    /// of the provided type.
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
@@ -48,14 +52,24 @@ pub const TracerProvider = struct {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.getTracer, .{ self, name, version, schema_url, attributes });
             }
+
+            pub fn destroyTracerImpl(
+                pointer: *anyopaque,
+                tracer: Tracer,
+            ) void {
+                const self: Ptr = @ptrCast(@alignCast(pointer));
+                return @call(.always_inline, ptr_info.Pointer.child.destroyTracer, .{ self, tracer });
+            }
         };
 
         return .{
             .ptr = ptr,
             .getTracerFn = gen.getTracerImpl,
+            .destroyTracerFn = gen.destroyTracerImpl,
         };
     }
 
+    /// Generate a new Tracer
     pub fn getTracer(
         self: *Self,
         name: []const u8,
@@ -64,6 +78,15 @@ pub const TracerProvider = struct {
         attributes: []attribute.Attribute,
     ) Tracer {
         return self.getTracerFn(self.ptr, name, version, schema_url, attributes);
+    }
+
+    /// Destroy a Tracer created by this TracerProvider.
+    ///
+    /// #Safety
+    /// The provided Tracer must have been acquired via a call to
+    /// `getTracer` on the same TracerProvider
+    pub fn destroyTracer(self: *Self, tracer: Tracer) void {
+        return self.destroyTracerFn(self.ptr, tracer);
     }
 };
 
