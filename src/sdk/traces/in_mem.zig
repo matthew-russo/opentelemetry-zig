@@ -28,8 +28,6 @@ pub const InMemoryTracerProvider = struct {
             .schema_url = schema_url,
             .attributes = attributes,
         };
-        // TODO [matthew-russo] there is no mechanism to clean up
-        // the allocated memory once we're done with the Tracer
         return otel_api.traces.Tracer.init(tracer);
     }
 

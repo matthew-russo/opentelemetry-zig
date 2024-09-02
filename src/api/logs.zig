@@ -3,12 +3,53 @@ const std = @import("std");
 const attribute = @import("./attribute.zig");
 const resource = @import("./resource.zig");
 
+// A global LoggerProvider, interacted with through the apis:
+// - setDefaultLoggerProvider
+// - unsetDefaultLoggerProvider
+// - getDefaultLoggerProvider
+//
+// This global variable is not thread safe
+var global_logger_provider: ?LoggerProvider = null;
+
+/// Set the default LoggerProvider to the provided implementation
+///
+/// # Concurrency
+/// This api is not thread-safe. Its intended to be called once during application
+/// initialization
+pub fn setDefaultLoggerProvider(logger_provider: LoggerProvider) void {
+    global_logger_provider = logger_provider;
+}
+
+/// Unset the default LoggerProvider
+///
+/// # Concurrency
+/// This api is not thread-safe.
+pub fn unsetDefaultLoggerProvider() void {
+    global_logger_provider = null;
+}
+
+/// Get the default LoggerProvider, if any.
+///
+/// # Concurrency
+/// This api is not thread-safe.
+pub fn getDefaultLoggerProvider() *?LoggerProvider {
+    return &global_logger_provider;
+}
+
 pub const LoggerProvider = struct {
     const Self = @This();
 
     ptr: *anyopaque,
 
-    getLoggerFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) Logger,
+    getLoggerFn: *const fn (
+        *anyopaque,
+        []const u8,
+        ?[]const u8,
+        ?[]const u8,
+        []attribute.Attribute,
+    ) Logger,
+
+    destroyLoggerFn: *const fn (*anyopaque, Logger) void,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -28,11 +69,20 @@ pub const LoggerProvider = struct {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.Pointer.child.getLogger, .{ self, name, version, schema_url, attributes });
             }
+
+            pub fn destroyLoggerImpl(
+                pointer: *anyopaque,
+                logger: Logger,
+            ) void {
+                const self: Ptr = @ptrCast(@alignCast(pointer));
+                return @call(.always_inline, ptr_info.Pointer.child.destroyLogger, .{ self, logger });
+            }
         };
 
         return .{
             .ptr = ptr,
             .getLoggerFn = gen.getLoggerImpl,
+            .destroyLoggerFn = gen.destroyLoggerImpl,
         };
     }
 
@@ -44,6 +94,10 @@ pub const LoggerProvider = struct {
         attributes: []attribute.Attribute,
     ) Logger {
         return self.getLoggerFn(self.ptr, name, version, schema_url, attributes);
+    }
+
+    pub fn destroyLogger(self: *Self, logger: Logger) void {
+        return self.destroyLoggerFn(self.ptr, logger);
     }
 };
 
@@ -62,9 +116,9 @@ pub const Logger = struct {
         if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
-            pub fn emitImpl(pointer: *anyopaque, log: LogRecord) void {
+            pub fn emitImpl(pointer: *anyopaque, log_record: LogRecord) void {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log });
+                return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log_record });
             }
         };
 
@@ -74,8 +128,8 @@ pub const Logger = struct {
         };
     }
 
-    pub fn emit(self: *Self, log: LogRecord) void {
-        return self.emitFn(self.ptr, log);
+    pub fn emit(self: *Self, log_record: LogRecord) void {
+        return self.emitFn(self.ptr, log_record);
     }
 };
 
@@ -182,7 +236,7 @@ pub const LogRecord = struct {
     // ---------------------+------------+------------------------------------
     severity_number: Severity,
     body: LogType,
-    resource: resource.Resource,
+    resource: ?resource.Resource,
     instrumentation_scope: InstrumentationScope,
     attributes: std.StringHashMap(LogType),
 };

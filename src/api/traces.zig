@@ -3,18 +3,37 @@ const std = @import("std");
 const attribute = @import("./attribute.zig");
 const context = @import("./context.zig");
 
-var global_trace_provider: ?TracerProvider = null;
+// A global TracerProvider, interacted with through the apis:
+// - setDefaultTraceProvider
+// - unsetDefaultTraceProvider
+// - getDefaultTraceProvider
+//
+// This global variable is not thread safe
+var global_tracer_provider: ?TracerProvider = null;
 
+/// Set the default TracerProvider to the provided implementation
+///
+/// # Concurrency
+/// This api is not thread-safe. Its intended to be called once during application
+/// initialization
 pub fn setDefaultTracerProvider(tracer_provider: TracerProvider) void {
-    global_trace_provider = tracer_provider;
+    global_tracer_provider = tracer_provider;
 }
 
+/// Unset the default TracerProvider
+///
+/// # Concurrency
+/// This api is not thread-safe.
 pub fn unsetDefaultTracerProvider() void {
-    global_trace_provider = null;
+    global_tracer_provider = null;
 }
 
+/// Get the default TracerProvider, if any.
+///
+/// # Concurrency
+/// This api is not thread-safe.
 pub fn getDefaultTracerProvider() *?TracerProvider {
-    return &global_trace_provider;
+    return &global_tracer_provider;
 }
 
 pub const TracerProvider = struct {
