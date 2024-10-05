@@ -142,6 +142,38 @@ pub const LogType = union(enum) {
     bytes: []const u8,
     list: std.ArrayList(LogType),
     map: std.StringHashMap(LogType),
+
+    pub fn format(
+        self: LogType,
+        comptime fmt: []const u8,
+        options: std.fmt.FormatOptions,
+        writer: anytype,
+    ) !void {
+        _ = fmt;
+        _ = options;
+
+        switch (self) {
+            .string => |s| try writer.print("{s}", .{s}),
+            .boolean => |b| try writer.print("{any}", .{b}),
+            .int => |i| try writer.print("{d}", .{i}),
+            .float => |f| try writer.print("{any}", .{f}),
+            .bytes => |b| try writer.print("{any}", .{b}),
+            .list => |l| {
+                for (l.items) |i| {
+                    try writer.print("{any}", .{i});
+                }
+            },
+            .map => |m| {
+                var iterator = m.iterator();
+                while (iterator.next()) |next| {
+                    try writer.print("{s}={any}", .{
+                        next.key_ptr.*,
+                        next.value_ptr.*,
+                    });
+                }
+            },
+        }
+    }
 };
 
 pub const Severity = enum(u8) {
