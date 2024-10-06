@@ -14,26 +14,26 @@ pub const Resource = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn emptyImpl() Self {
-                return @call(.always_inline, ptr_info.Pointer.child.empty, .{});
+                return @call(.always_inline, ptr_info.pointer.child.empty, .{});
             }
 
             pub fn createImpl(attributes: []const attribute.Attribute, schema_url: ?[]const u8) Self {
-                return @call(.always_inline, ptr_info.Pointer.child.create, .{ attributes, schema_url });
+                return @call(.always_inline, ptr_info.pointer.child.create, .{ attributes, schema_url });
             }
 
             pub fn mergeImpl(pointer: *anyopaque, other: Self) Self {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.merge, .{ self, other });
+                return @call(.always_inline, ptr_info.pointer.child.merge, .{ self, other });
             }
 
             pub fn retrieveImpl(pointer: *anyopaque) []const attribute.Attribute {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.retrieve, .{self});
+                return @call(.always_inline, ptr_info.pointer.child.retrieve, .{self});
             }
         };
 

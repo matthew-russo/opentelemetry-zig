@@ -55,8 +55,8 @@ pub const LoggerProvider = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getLoggerImpl(
@@ -67,7 +67,7 @@ pub const LoggerProvider = struct {
                 attributes: []attribute.Attribute,
             ) Logger {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.getLogger, .{ self, name, version, schema_url, attributes });
+                return @call(.always_inline, ptr_info.pointer.child.getLogger, .{ self, name, version, schema_url, attributes });
             }
 
             pub fn destroyLoggerImpl(
@@ -75,7 +75,7 @@ pub const LoggerProvider = struct {
                 logger: Logger,
             ) void {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.destroyLogger, .{ self, logger });
+                return @call(.always_inline, ptr_info.pointer.child.destroyLogger, .{ self, logger });
             }
         };
 
@@ -112,13 +112,13 @@ pub const Logger = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn emitImpl(pointer: *anyopaque, log_record: LogRecord) void {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.emit, .{ self, log_record });
+                return @call(.always_inline, ptr_info.pointer.child.emit, .{ self, log_record });
             }
         };
 

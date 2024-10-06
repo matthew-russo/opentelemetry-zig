@@ -11,8 +11,8 @@ pub const MeterProvider = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getMeterImpl(
@@ -23,7 +23,7 @@ pub const MeterProvider = struct {
                 attributes: []attribute.Attribute,
             ) Meter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.getMeter, .{ self, name, version, schema_url, attributes });
+                return @call(.always_inline, ptr_info.pointer.child.getMeter, .{ self, name, version, schema_url, attributes });
             }
         };
 
@@ -66,8 +66,8 @@ pub const Meter = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn createCounterImpl(
@@ -78,7 +78,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) Counter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createCounter, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createCounter, .{ self, name, unit, description, advisories });
             }
 
             pub fn createAsyncCounterImpl(
@@ -89,7 +89,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) AsyncCounter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createAsyncCounter, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createAsyncCounter, .{ self, name, unit, description, advisories });
             }
 
             pub fn createHistogramImpl(
@@ -100,7 +100,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) Histogram {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createHistogram, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createHistogram, .{ self, name, unit, description, advisories });
             }
 
             pub fn createGaugeImpl(
@@ -111,7 +111,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) Gauge {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createGauge, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createGauge, .{ self, name, unit, description, advisories });
             }
 
             pub fn createAsyncGaugeImpl(
@@ -122,7 +122,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) AsyncGauge {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createAsyncGauge, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createAsyncGauge, .{ self, name, unit, description, advisories });
             }
 
             pub fn createUpDownCounterImpl(
@@ -133,7 +133,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) UpDownCounter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createUpDownCounter, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createUpDownCounter, .{ self, name, unit, description, advisories });
             }
 
             pub fn createAsyncUpDownCounterImpl(
@@ -144,7 +144,7 @@ pub const Meter = struct {
                 advisories: ?[]AdvisoryParameter,
             ) AsyncUpDownCounter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createAsyncUpDownCounter, .{ self, name, unit, description, advisories });
+                return @call(.always_inline, ptr_info.pointer.child.createAsyncUpDownCounter, .{ self, name, unit, description, advisories });
             }
         };
 

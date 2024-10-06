@@ -57,8 +57,8 @@ pub const TracerProvider = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getTracerImpl(
@@ -69,7 +69,7 @@ pub const TracerProvider = struct {
                 attributes: []attribute.Attribute,
             ) Tracer {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.getTracer, .{ self, name, version, schema_url, attributes });
+                return @call(.always_inline, ptr_info.pointer.child.getTracer, .{ self, name, version, schema_url, attributes });
             }
 
             pub fn destroyTracerImpl(
@@ -77,7 +77,7 @@ pub const TracerProvider = struct {
                 tracer: Tracer,
             ) void {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.destroyTracer, .{ self, tracer });
+                return @call(.always_inline, ptr_info.pointer.child.destroyTracer, .{ self, tracer });
             }
         };
 
@@ -128,8 +128,8 @@ pub const Tracer = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn createSpanImpl(
@@ -142,7 +142,7 @@ pub const Tracer = struct {
                 start: ?u64,
             ) Span {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.createSpan, .{
+                return @call(.always_inline, ptr_info.pointer.child.createSpan, .{
                     self,
                     name,
                     ctx,

@@ -12,18 +12,18 @@ pub const Context = struct {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
-        if (ptr_info != .Pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.Pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info != .pointer) @compileError("ptr must be a pointer");
+        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getValueImpl(pointer: *anyopaque, name: []const u8) ?ContextValue {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.getValue, .{ self, name });
+                return @call(.always_inline, ptr_info.pointer.child.getValue, .{ self, name });
             }
 
             pub fn withValueImpl(pointer: *anyopaque, name: []const u8, value: ContextValue) *Self {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
-                return @call(.always_inline, ptr_info.Pointer.child.withValue, .{ self, name, value });
+                return @call(.always_inline, ptr_info.pointer.child.withValue, .{ self, name, value });
             }
         };
 
