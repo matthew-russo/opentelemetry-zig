@@ -104,6 +104,16 @@ pub const Status = union(Code) {
             },
         }
     }
+
+    pub fn format(this: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        try writer.writeAll(@tagName(this));
+        switch (this) {
+            .unset,
+            .ok,
+            => {},
+            .@"error" => |msg| try writer.print("\"{}\"", .{std.zig.fmtEscapes(msg)}),
+        }
+    }
 };
 
 pub const SpanContext = struct {

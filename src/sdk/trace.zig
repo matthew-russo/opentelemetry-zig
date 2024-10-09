@@ -113,6 +113,19 @@ pub const SpanRecord = struct {
 
         try jw.endObject();
     }
+
+    pub fn format(this: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        if (this.end_timestamp) |end_timestamp| {
+            const duration = end_timestamp - this.start_timestamp;
+            try writer.print("trace({s}): {s} {}", .{ this.scope.name, this.status, this.name, std.fmt.fmtDuration(@intCast(duration)) });
+        } else {
+            try writer.print("trace({s}): {s} {} to {?}", .{ this.scope.name, this.status, this.name, this.start_timestamp, this.end_timestamp });
+        }
+
+        if (this.attributes.kv.count() > 0) {
+            try writer.print(" {}", .{this.attributes});
+        }
+    }
 };
 
 pub const EventRecord = struct {

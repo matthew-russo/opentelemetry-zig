@@ -174,8 +174,6 @@ fn connectionThreadLoop(this: *@This()) !void {
             this.allocator.destroy(node);
         }
 
-        std.debug.print("{s}\n", .{node.data.payload});
-
         const response = try client.fetch(.{
             .location = .{ .uri = node.data.uri },
             .method = .POST,

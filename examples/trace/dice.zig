@@ -10,14 +10,14 @@ fn initTelemetry(allocator: std.mem.Allocator) !void {
     var resource = try otel.Resource.detect(allocator, .{});
     errdefer resource.deinit(allocator);
 
-    // const simple_span_processor = try otel.trace.SpanProcessor.Simple.create(allocator, .{});
-    // errdefer simple_span_processor.spanProcessor().shutdown();
+    const simple_span_processor = try otel.trace.SpanProcessor.Simple.create(allocator, .{});
+    errdefer simple_span_processor.spanProcessor().shutdown();
 
     const batch_processor = try otel.trace.SpanProcessor.Batching.create(allocator, .{});
     errdefer batch_processor.spanProcessor().shutdown();
 
-    // const stderr_exporter = try otel.exporter.StdErr.create(allocator, .{});
-    // errdefer stderr_exporter.spanExporter().shutdown();
+    const stderr_exporter = try otel.exporter.StdErr.create(allocator, .{});
+    errdefer stderr_exporter.spanExporter().shutdown();
 
     const otlp_exporter = try otel.exporter.OpenTelemetry.create(allocator, .{});
     errdefer otlp_exporter.spanExporter().shutdown();
@@ -29,10 +29,10 @@ fn initTelemetry(allocator: std.mem.Allocator) !void {
                 .processor = batch_processor.spanProcessor(),
                 .exporter = otlp_exporter.spanExporter(),
             },
-            // .{
-            //     .processor = simple_span_processor.spanProcessor(),
-            //     .exporter = stderr_exporter.spanExporter(),
-            // },
+            .{
+                .processor = simple_span_processor.spanProcessor(),
+                .exporter = stderr_exporter.spanExporter(),
+            },
         },
     });
 }
