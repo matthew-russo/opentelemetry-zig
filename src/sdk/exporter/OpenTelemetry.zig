@@ -63,7 +63,7 @@ fn exporter_configure(exporter: sdk.trace.SpanExporter, options: sdk.trace.SpanE
     this.resource = options.resource;
 }
 
-fn exporter_export(exporter: sdk.trace.SpanExporter, batch: []const sdk.trace.SpanRecord) sdk.trace.SpanExporter.Result {
+fn exporter_export(exporter: sdk.trace.SpanExporter, batch: []const *sdk.trace.DynamicTracerProvider.Span) sdk.trace.SpanExporter.Result {
     const this: *@This() = @ptrCast(@alignCast(exporter.ptr));
 
     this.exportFallible(batch) catch {
@@ -73,50 +73,28 @@ fn exporter_export(exporter: sdk.trace.SpanExporter, batch: []const sdk.trace.Sp
     return .success;
 }
 
-fn exportFallible(this: *@This(), batch: []const sdk.trace.SpanRecord) !void {
+fn exportFallible(this: *@This(), batch: []const *sdk.trace.DynamicTracerProvider.Span) !void {
     const node = try this.allocator.create(std.DoublyLinkedList(Message).Node);
     errdefer this.allocator.destroy(node);
 
     // TODO: sort spanrecords by instrumentation scope
-    // const batch_copy = this.allocator.dupe(sdk.trace.SpanRecord, batch);
-    // std.sort.insertion(sdk.trace.SpanRecord, batch_copy, {}, spanRecordLessThan);
 
-    // var resource_spans = std.ArrayHashMap(TracePayload.ResourceSpan){};
-    // defer resource_spans.deinit();
-    // var scope_spans = std.ArrayListUnmanaged(TracePayload.ScopeSpans){};
-    // defer scope_spans.deinit();
+    var records = std.ArrayListUnmanaged(*const sdk.trace.SpanRecord){};
+    defer records.deinit(this.allocator);
 
-    // for (batch) |record| {
-    //     if (scope_spans.items.len == 0) {
-    //         try scope_spans.append(record);
-    //         continue;
-    //     }
-    //     if (!std.mem.eql(api.InstrumentationScope, record.scope, scope_spans.items[scope_spans.items.len - 1])) {
-    //         try resource_spans.append(try scope_spans.toOwnedSlice(this.allocator));
-    //         continue;
-    //     }
-    // }
+    try records.resize(this.allocator, batch.len);
 
-    // for (this.resource_spans.values()) |scope_spans| {
-    //     scope_spans.deinit(this.allocator);
-    // }
-    // this.resource_spans.clearRetainingCapacity();
-
-    // for (batch) |record| {
-    //     const gop = try this.resource_spans.getOrPut(@bitCast(record.resource));
-    //     if (!gop.found_existing) {
-    //         gop.value_ptr.* = .{};
-    //     }
-    //     gop.value_ptr.append(this.allocator, record);
-    // }
+    for (records.items, batch) |*record, span| {
+        record.* = &span.record;
+    }
 
     const trace_payload: TracePayload = .{
         .resourceSpans = &.{.{
             .resource = this.resource,
             .scopeSpans = &.{
                 .{
-                    .scope = batch[0].scope,
-                    .spans = batch,
+                    .scope = batch[0].record.scope,
+                    .spans = records.items,
                 },
             },
         }},
@@ -167,7 +145,7 @@ const TracePayload = struct {
 
     const ScopeSpans = struct {
         scope: api.InstrumentationScope,
-        spans: []const sdk.trace.SpanRecord,
+        spans: []const *const sdk.trace.SpanRecord,
     };
 };
 

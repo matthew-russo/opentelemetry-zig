@@ -20,7 +20,7 @@ pub const ForceFlushResult = enum {
 
 pub const VTable = struct {
     configure: *const fn (Exporter, ConfigureOptions) void,
-    @"export": *const fn (Exporter, batch: []const sdk.trace.SpanRecord) Result,
+    @"export": *const fn (Exporter, batch: []const *sdk.trace.DynamicTracerProvider.Span) Result,
     force_flush: *const fn (Exporter, listener: *ForceFlushResultListener) void,
     shutdown: *const fn (Exporter) void,
 };
@@ -33,7 +33,7 @@ pub fn configure(exporter: Exporter, options: ConfigureOptions) void {
     return exporter.vtable.configure(exporter, options);
 }
 
-pub fn @"export"(exporter: Exporter, batch: []const sdk.trace.SpanRecord) Result {
+pub fn @"export"(exporter: Exporter, batch: []const *sdk.trace.DynamicTracerProvider.Span) Result {
     return exporter.vtable.@"export"(exporter, batch);
 }
 

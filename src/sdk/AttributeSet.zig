@@ -15,6 +15,13 @@ pub fn ensureTotalCapacity(this: *@This(), allocator: std.mem.Allocator, max_att
     try this.value_table.ensureTotalCapacity(allocator, max_value_bytes);
 }
 
+pub fn reset(this: *@This()) void {
+    this.kv.clearRetainingCapacity();
+    this.string_table.clearRetainingCapacity();
+    this.value_table.clearRetainingCapacity();
+    this.dropped_attribute_count = 0;
+}
+
 pub fn deinit(this: *@This(), allocator: std.mem.Allocator) void {
     this.kv.deinit(allocator);
     this.string_table.deinit(allocator);

@@ -8,8 +8,8 @@ vtable: *const VTable,
 
 pub const VTable = struct {
     configure: *const fn (Processor, ConfigureOptions) void,
-    on_start: *const fn (Processor, *sdk.trace.SpanRecord, parent_context: *const api.Context) void,
-    on_end: *const fn (Processor, *const sdk.trace.SpanRecord) void,
+    on_start: *const fn (Processor, *sdk.trace.DynamicTracerProvider.Span, parent_context: *const api.Context) void,
+    on_end: *const fn (Processor, *sdk.trace.DynamicTracerProvider.Span) void,
     shutdown: *const fn (Processor) void,
     // force_flush: *const fn (Processor) void,
 };
@@ -22,11 +22,11 @@ pub fn configure(processor: Processor, options: ConfigureOptions) void {
     return processor.vtable.configure(processor, options);
 }
 
-pub fn onStart(processor: Processor, span: *sdk.trace.SpanRecord, parent_context: *const api.Context) void {
+pub fn onStart(processor: Processor, span: *sdk.trace.DynamicTracerProvider.Span, parent_context: *const api.Context) void {
     return processor.vtable.on_start(processor, span, parent_context);
 }
 
-pub fn onEnd(processor: Processor, span: *const sdk.trace.SpanRecord) void {
+pub fn onEnd(processor: Processor, span: *sdk.trace.DynamicTracerProvider.Span) void {
     return processor.vtable.on_end(processor, span);
 }
 

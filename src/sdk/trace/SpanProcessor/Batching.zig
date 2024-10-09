@@ -1,5 +1,5 @@
 allocator: std.mem.Allocator,
-queue: std.ArrayListUnmanaged(sdk.trace.SpanRecord),
+queue: std.ArrayListUnmanaged(*sdk.trace.DynamicTracerProvider.Span),
 dropped_spans: u32 = 0,
 max_batch_size: u32,
 
@@ -13,7 +13,7 @@ pub const InitOptions = struct {
 pub fn create(allocator: std.mem.Allocator, options: InitOptions) !*@This() {
     std.debug.assert(options.max_batch_size < options.max_queue_size);
 
-    var queue = try std.ArrayListUnmanaged(sdk.trace.SpanRecord).initCapacity(allocator, options.max_queue_size);
+    var queue = try std.ArrayListUnmanaged(*sdk.trace.DynamicTracerProvider.Span).initCapacity(allocator, options.max_queue_size);
     errdefer queue.deinit(allocator);
 
     const this = try allocator.create(@This());
@@ -56,54 +56,37 @@ fn span_processor_configure(processor: sdk.trace.SpanProcessor, options: sdk.tra
     this.exporter = options.exporter;
 }
 
-fn span_processor_onStart(processor: sdk.trace.SpanProcessor, span: *sdk.trace.SpanRecord, parent_context: *const api.Context) void {
+fn span_processor_onStart(processor: sdk.trace.SpanProcessor, span: *sdk.trace.DynamicTracerProvider.Span, parent_context: *const api.Context) void {
     _ = processor;
     _ = span;
     _ = parent_context;
 }
 
-fn span_processor_onEnd(processor: sdk.trace.SpanProcessor, span: *const sdk.trace.SpanRecord) void {
+fn span_processor_onEnd(processor: sdk.trace.SpanProcessor, span: *sdk.trace.DynamicTracerProvider.Span) void {
     const this: *@This() = @ptrCast(@alignCast(processor.ptr));
 
-    var attributes_clone = span.attributes.clone(this.allocator) catch {
-        this.dropped_spans += 1;
-        return;
-    };
-    if (this.queue.unusedCapacitySlice().len == 0) {
-        attributes_clone.deinit(this.allocator);
-        this.dropped_spans += 1;
-        return;
-    }
-    this.queue.appendAssumeCapacity(.{
-        .name = span.name,
-        .scope = span.scope,
-        .context = span.context,
-        .parent_span_id = span.parent_span_id,
-        .kind = span.kind,
-        .start_timestamp = span.start_timestamp,
-        .end_timestamp = span.end_timestamp,
-        .attributes = attributes_clone,
-        .links = span.links,
-        .dropped_links_count = 0,
-        .events = span.events,
-        .dropped_events_count = 0,
-        .status = span.status,
-    });
-
-    const exporter = this.exporter orelse return;
-
-    if (this.queue.items.len >= this.max_batch_size) {
-        const batch = this.queue.items[0..this.max_batch_size];
-        switch (exporter.@"export"(batch)) {
-            .failure => {},
-            .success => {
-                for (batch) |*record| {
-                    record.attributes.deinit(this.allocator);
+    defer {
+        if (this.exporter) |exporter| {
+            if (this.queue.items.len >= this.max_batch_size) {
+                const batch = this.queue.items[0..this.max_batch_size];
+                switch (exporter.@"export"(batch)) {
+                    .failure => {},
+                    .success => {
+                        for (batch) |s| {
+                            s.release();
+                        }
+                        this.queue.replaceRangeAssumeCapacity(batch.len, this.queue.items.len - batch.len, this.queue.items[0..batch.len]);
+                    },
                 }
-                this.queue.replaceRangeAssumeCapacity(batch.len, this.queue.items.len - batch.len, this.queue.items[0..batch.len]);
-            },
+            }
         }
     }
+    if (this.queue.unusedCapacitySlice().len == 0) {
+        this.dropped_spans += 1;
+        return;
+    }
+    span.acquire();
+    this.queue.appendAssumeCapacity(span);
 }
 
 // fn stderr_exporter_forceFlush(processor: sdk.trace.SpanProcessor) void {
@@ -116,8 +99,8 @@ fn span_processor_shutdown(processor: sdk.trace.SpanProcessor) void {
     if (this.exporter) |exporter| {
         _ = exporter.@"export"(this.queue.items);
     }
-    for (this.queue.items) |*record| {
-        record.attributes.deinit(this.allocator);
+    for (this.queue.items) |span| {
+        span.release();
     }
     this.queue.deinit(this.allocator);
     this.allocator.destroy(this);

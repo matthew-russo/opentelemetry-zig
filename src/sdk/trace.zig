@@ -24,6 +24,36 @@ pub const SpanRecord = struct {
     dropped_events_count: u32,
     status: api.trace.Status,
 
+    pub fn reset(this: *@This()) void {
+        this.name = "";
+        this.scope = .{ .name = "" };
+        this.context = .{
+            .trace_id = api.trace.TraceId.INVALID,
+            .span_id = api.trace.SpanId.INVALID,
+            .flags = api.trace.Flags.NONE,
+            .state = .{
+                .values = &.{},
+            },
+            .is_remote = false,
+        };
+        this.parent_span_id = api.trace.SpanId.INVALID;
+        this.kind = .unspecified;
+        this.start_timestamp = undefined;
+        this.end_timestamp = null;
+        this.attributes.reset();
+        this.links.clearRetainingCapacity();
+        this.dropped_links_count = 0;
+        this.events.clearRetainingCapacity();
+        this.dropped_events_count = 0;
+        this.status = .unset;
+    }
+
+    pub fn deinit(this: *@This(), allocator: std.mem.Allocator) void {
+        this.attributes.deinit(allocator);
+        this.links.deinit(allocator);
+        this.events.deinit(allocator);
+    }
+
     pub fn jsonStringify(this: @This(), jw: anytype) !void {
         try jw.beginObject();
 
@@ -95,8 +125,9 @@ pub const DynamicTracerProvider = struct {
     allocator: std.mem.Allocator,
     resource: sdk.Resource,
     limits: sdk.trace.SpanLimits = .{},
+    max_spans: usize,
     pipelines: std.ArrayListUnmanaged(Pipeline),
-    span_pool: std.heap.MemoryPool(Span),
+    free_spans: std.SinglyLinkedList(Span),
 
     var global_dynamic_tracer_provider: ?DynamicTracerProvider = null;
 
@@ -109,6 +140,7 @@ pub const DynamicTracerProvider = struct {
         resource: sdk.Resource,
         limits: SpanLimits = .{},
         pipelines: []const Pipeline,
+        max_spans: usize = 1024,
     };
 
     pub fn init(allocator: std.mem.Allocator, options: InitOptions) !void {
@@ -122,9 +154,46 @@ pub const DynamicTracerProvider = struct {
             .allocator = allocator,
             .resource = options.resource,
             .limits = options.limits,
+            .max_spans = options.max_spans,
             .pipelines = pipelines,
-            .span_pool = std.heap.MemoryPool(Span).init(allocator),
+            .free_spans = .{},
         };
+
+        for (0..options.max_spans) |_| {
+            const node = try allocator.create(std.SinglyLinkedList(Span).Node);
+            node.data = .{
+                .provider = &global_dynamic_tracer_provider.?,
+                .reference_count = 0,
+                .record = .{
+                    .name = "",
+                    .scope = .{ .name = "" },
+                    .context = .{
+                        .trace_id = api.trace.TraceId.INVALID,
+                        .span_id = api.trace.SpanId.INVALID,
+                        .flags = api.trace.Flags.NONE,
+                        .state = .{
+                            .values = &.{},
+                        },
+                        .is_remote = false,
+                    },
+                    .parent_span_id = api.trace.SpanId.INVALID,
+                    .kind = .unspecified,
+                    .start_timestamp = undefined,
+                    .end_timestamp = null,
+                    .attributes = .{},
+                    .links = .{},
+                    .dropped_links_count = 0,
+                    .events = .{},
+                    .dropped_events_count = 0,
+                    .status = .unset,
+                },
+            };
+
+            try node.data.record.attributes.ensureTotalCapacity(allocator, options.limits.attribute_limits.count_limit, 4096, 4096);
+            try node.data.record.links.ensureTotalCapacity(allocator, options.limits.link_count_limit);
+            try node.data.record.events.ensureTotalCapacity(allocator, options.limits.event_count_limit);
+            global_dynamic_tracer_provider.?.free_spans.prepend(node);
+        }
 
         for (pipelines.items) |pipeline| {
             pipeline.processor.configure(.{
@@ -146,7 +215,10 @@ pub const DynamicTracerProvider = struct {
         tracer_provider.pipelines.deinit(tracer_provider.allocator);
 
         tracer_provider.resource.deinit(tracer_provider.allocator);
-        tracer_provider.span_pool.deinit();
+        while (tracer_provider.free_spans.popFirst()) |node| {
+            node.data.record.deinit(tracer_provider.allocator);
+            tracer_provider.allocator.destroy(node);
+        }
 
         global_dynamic_tracer_provider = null;
     }
@@ -181,33 +253,16 @@ pub const DynamicTracerProvider = struct {
 
             // TODO: Sampler interfaces
 
-            const span = try tracer_provider.span_pool.create();
-            errdefer span.destroy();
-            span.* = .{
-                .record = .{
-                    .name = name,
-                    .scope = this.instrumentation_scope,
-                    .context = .{
-                        .trace_id = api.trace.TraceId.INVALID,
-                        .span_id = undefined,
-                        .flags = api.trace.Flags.NONE,
-                        .state = .{
-                            .values = &.{},
-                        },
-                        .is_remote = false,
-                    },
-                    .parent_span_id = api.trace.SpanId.INVALID,
-                    .kind = options.kind,
-                    .start_timestamp = timestamp,
-                    .end_timestamp = null,
-                    .attributes = .{},
-                    .links = .{},
-                    .dropped_links_count = 0,
-                    .events = .{},
-                    .dropped_events_count = 0,
-                    .status = .unset,
-                },
-            };
+            const node = tracer_provider.free_spans.popFirst() orelse return api.trace.Span.null;
+            errdefer tracer_provider.free_spans.prepend(node);
+
+            const span = &node.data;
+            span.acquire();
+            span.record.reset();
+            span.record.name = name;
+            span.record.scope = this.instrumentation_scope;
+            span.record.start_timestamp = timestamp;
+            span.record.kind = options.kind;
 
             const context = context_opt orelse api.Context.current();
             if (context.getValue(*Span)) |parent_span| {
@@ -230,7 +285,7 @@ pub const DynamicTracerProvider = struct {
             }
 
             for (tracer_provider.pipelines.items) |pipeline| {
-                pipeline.processor.onStart(&span.record, context);
+                pipeline.processor.onStart(span, context);
             }
 
             return span.span();
@@ -245,15 +300,19 @@ pub const DynamicTracerProvider = struct {
     };
 
     pub const Span = struct {
+        provider: *DynamicTracerProvider,
+        reference_count: u32,
         record: sdk.trace.SpanRecord,
 
-        pub fn destroy(this: *@This()) void {
-            const tracer_provider = &(global_dynamic_tracer_provider orelse return);
+        pub fn acquire(this: *@This()) void {
+            this.reference_count += 1;
+        }
 
-            this.record.attributes.deinit(tracer_provider.allocator);
-            this.record.links.deinit(tracer_provider.allocator);
-            this.record.events.deinit(tracer_provider.allocator);
-            tracer_provider.span_pool.destroy(this);
+        pub fn release(this: *@This()) void {
+            this.reference_count -= 1;
+            if (this.reference_count == 0) {
+                this.provider.free_spans.prepend(@fieldParentPtr("data", this));
+            }
         }
 
         pub fn span(this: *@This()) api.trace.Span {
@@ -309,12 +368,12 @@ pub const DynamicTracerProvider = struct {
 
         fn span_end(span_opaque: api.trace.Span, timestamp_opt: ?i128) void {
             const this: *@This() = @ptrCast(@alignCast(span_opaque.ptr.?));
+            defer this.release();
+
             this.record.end_timestamp = timestamp_opt orelse std.time.nanoTimestamp();
 
-            const tracer_provider = &(global_dynamic_tracer_provider orelse return);
-            defer this.destroy();
-            for (tracer_provider.pipelines.items) |pipeline| {
-                pipeline.processor.onEnd(&this.record);
+            for (this.provider.pipelines.items) |pipeline| {
+                pipeline.processor.onEnd(this);
             }
         }
 
