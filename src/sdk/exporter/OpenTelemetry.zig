@@ -2,7 +2,7 @@ allocator: std.mem.Allocator,
 running: bool,
 thread: std.Thread,
 
-resource: ?*const api.Resource = null,
+resource: ?*const sdk.Resource = null,
 
 traces_uri_string: []const u8,
 
@@ -161,7 +161,7 @@ const TracePayload = struct {
     resourceSpans: []const ResourceSpan,
 
     const ResourceSpan = struct {
-        resource: ?*const api.Resource,
+        resource: ?*const sdk.Resource,
         scopeSpans: []const ScopeSpans,
     };
 

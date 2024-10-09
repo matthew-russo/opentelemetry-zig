@@ -2,7 +2,6 @@ pub const attribute = @import("./api/attribute.zig");
 pub const trace = @import("./api/trace.zig");
 
 pub const Attribute = attribute.Attribute;
-pub const Resource = @import("./api/Resource.zig");
 
 const root = @import("root");
 pub const options: Options = if (@hasDecl(root, "opentelemetry_options"))

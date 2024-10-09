@@ -26,7 +26,7 @@ pub const VTable = struct {
 };
 
 pub const ConfigureOptions = struct {
-    resource: ?*const api.Resource,
+    resource: ?*const sdk.Resource,
 };
 
 pub fn configure(exporter: Exporter, options: ConfigureOptions) void {

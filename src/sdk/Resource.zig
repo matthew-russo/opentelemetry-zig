@@ -1,4 +1,4 @@
-attributes: api.attribute.Set,
+attributes: sdk.AttributeSet,
 
 pub const DetectOptions = struct {
     /// If not provided, will be automatically detected from first command line argument.
@@ -30,13 +30,14 @@ pub fn detect(allocator: std.mem.Allocator, options: DetectOptions) !@This() {
         .@"telemetry.sdk.version" = TELEMETRY_SDK.@"telemetry.sdk.version",
     });
 
-    return .{ .attributes = try api.attribute.Set.fromList(allocator, &attribute_list) };
+    return .{ .attributes = try sdk.AttributeSet.fromList(allocator, &attribute_list) };
 }
 
 pub fn deinit(this: *@This(), allocator: std.mem.Allocator) void {
     this.attributes.deinit(allocator);
 }
 
-const api = @import("../api.zig");
+const api = @import("api");
+const sdk = @import("../sdk.zig");
 const builtin = @import("builtin");
 const std = @import("std");

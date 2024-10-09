@@ -17,7 +17,7 @@ pub const SpanRecord = struct {
     kind: api.trace.SpanKind,
     start_timestamp: i128,
     end_timestamp: ?i128,
-    attributes: api.attribute.Set,
+    attributes: sdk.AttributeSet,
     links: std.ArrayListUnmanaged(api.trace.Link),
     dropped_links_count: u32,
     events: std.ArrayListUnmanaged(EventRecord),
@@ -93,7 +93,7 @@ pub const EventRecord = struct {
 
 pub const DynamicTracerProvider = struct {
     allocator: std.mem.Allocator,
-    resource: api.Resource,
+    resource: sdk.Resource,
     limits: sdk.trace.SpanLimits = .{},
     pipelines: std.ArrayListUnmanaged(Pipeline),
     span_pool: std.heap.MemoryPool(Span),
@@ -106,7 +106,7 @@ pub const DynamicTracerProvider = struct {
     };
 
     pub const InitOptions = struct {
-        resource: api.Resource,
+        resource: sdk.Resource,
         limits: SpanLimits = .{},
         pipelines: []const Pipeline,
     };

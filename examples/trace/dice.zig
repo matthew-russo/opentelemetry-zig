@@ -7,7 +7,7 @@ pub const opentelemetry_options = otel.api.Options{
 pub const tracer = otel.api.trace.getTracer(.{ .name = "zig.opentelemetry.examples.trace.dice" });
 
 fn initTelemetry(allocator: std.mem.Allocator) !void {
-    var resource = try otel.api.Resource.detect(allocator, .{});
+    var resource = try otel.Resource.detect(allocator, .{});
     errdefer resource.deinit(allocator);
 
     // const simple_span_processor = try otel.trace.SpanProcessor.Simple.create(allocator, .{});
