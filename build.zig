@@ -50,4 +50,13 @@ pub fn build(b: *std.Build) void {
     });
     example_trace_dice_exe.root_module.addImport("opentelemetry-sdk", sdk_module);
     b.installArtifact(example_trace_dice_exe);
+
+    const example_metrics_allocations_exe = b.addExecutable(.{
+        .name = "opentelemetry_example_metrics_allocations",
+        .root_source_file = b.path("examples/metrics/allocations.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    example_metrics_allocations_exe.root_module.addImport("opentelemetry-sdk", sdk_module);
+    b.installArtifact(example_metrics_allocations_exe);
 }

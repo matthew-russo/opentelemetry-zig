@@ -1,4 +1,5 @@
 pub const attribute = @import("./api/attribute.zig");
+pub const metrics = @import("./api/metrics.zig");
 pub const trace = @import("./api/trace.zig");
 
 pub const Attribute = attribute.Attribute;
@@ -15,6 +16,7 @@ pub const Options = struct {
     context_size: usize = 32,
     check_context_detach_order: bool = std.debug.runtime_safety,
     tracer_provider: type = trace.VoidTracerProvider,
+    meter_provider: metrics.MeterProvider = metrics.voidMeterProvider,
 };
 
 pub const InstrumentationScope = struct {
