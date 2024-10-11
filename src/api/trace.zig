@@ -1,62 +1,76 @@
 const trace = @This();
 
-pub const getTracer = api.options.tracer_provider.getTracer;
-pub const Tracer = api.options.tracer_provider.Tracer;
+pub const TracerProvider = fn (comptime api.InstrumentationScope) Tracer;
 
-pub const contextExtractSpan = api.options.tracer_provider.contextExtractSpan;
-pub const contextWithSpan = api.options.tracer_provider.contextWithSpan;
+pub const getTracer: TracerProvider = api.options.tracer_provider;
 
-// pub const contextExtractSpan(context: *const api.Context) ?api.trace.Span {
-//     const impl_span = context.getValue(*Span) orelse return null;
-//     return impl_span.span();
-// }
+pub const contextExtractSpan = api.options.context_extract_span;
+pub const contextWithSpan = api.options.context_with_span;
 
-// pub fn contextWithSpan(context: *const api.Context, span: api.trace.Span) ?api.trace.Span {
-//     if (span.vtable != &Span.SPAN_VTABLE) return null;
-//     return context.withValue(*Span, @ptrCast(span.ptr));
-// }
+pub const ContextExtractSpanFn = *const fn (context: *const api.Context) ?api.trace.Span;
+pub const ContextWithSpanFn = *const fn (context: *const api.Context, span: api.trace.Span) api.Context;
+
+pub const Tracer = struct {
+    ptr: ?*anyopaque,
+    vtable: ?*const VTable,
+
+    pub const NULL = Tracer{ .ptr = null, .vtable = null };
+
+    pub const VTable = struct {
+        create_span: *const fn (?*anyopaque, name: []const u8, context: ?*const api.Context, options: CreateSpanOptions) Span,
+        enabled: *const fn (?*anyopaque, Tracer.EnabledOptions) bool,
+    };
+
+    pub const CreateSpanOptions = struct {
+        kind: SpanKind = .internal,
+        attributes: []const api.Attribute = &.{},
+        links: []const Link = &.{},
+        start_timestamp: ?i128 = null,
+    };
+    pub fn createSpan(tracer: Tracer, name: []const u8, context: ?*const api.Context, options: CreateSpanOptions) Span {
+        const vtable = tracer.vtable orelse return Span.NULL;
+        return vtable.create_span(tracer.ptr, name, context, options);
+    }
+
+    /// No options at the moment, but some may be added in the future.
+    pub const EnabledOptions = struct {};
+    pub fn enabled(tracer: Tracer, options: EnabledOptions) bool {
+        const vtable = tracer.vtable orelse return false;
+        return vtable.enabled(tracer.ptr, options);
+    }
+};
 
 pub const Span = struct {
     ptr: ?*anyopaque,
     vtable: ?*const Span.VTable,
 
-    pub const @"null" = .{ .ptr = null, .vtable = null };
+    pub const NULL = .{ .ptr = null, .vtable = null };
 
     pub const VTable = struct {
-        get_context: *const fn (Span) SpanContext,
-        is_recording: *const fn (Span) bool,
-        set_attribute: *const fn (Span, attribute: api.Attribute) void,
-        add_event: *const fn (Span, AddEventOptions) void,
-        add_link: *const fn (Span, link: Link) void,
-        set_status: *const fn (Span, Status) void,
-        update_name: *const fn (Span, new_name: []const u8) void,
-        end: *const fn (Span, timestamp: ?i128) void,
-        record_exception: *const fn (Span, anyerror, ?std.builtin.StackTrace) void,
+        get_context: *const fn (?*anyopaque) SpanContext,
+        is_recording: *const fn (?*anyopaque) bool,
+        set_attribute: *const fn (?*anyopaque, attribute: api.Attribute) void,
+        add_event: *const fn (?*anyopaque, AddEventOptions) void,
+        add_link: *const fn (?*anyopaque, link: Link) void,
+        set_status: *const fn (?*anyopaque, Status) void,
+        update_name: *const fn (?*anyopaque, new_name: []const u8) void,
+        end: *const fn (?*anyopaque, timestamp: ?i128) void,
+        record_exception: *const fn (?*anyopaque, anyerror, ?std.builtin.StackTrace) void,
     };
 
     pub fn getContext(span: Span) Span.Context {
         if (span.vtable) |vtable| {
-            return vtable.get_context(span);
+            return vtable.get_context(span.ptr);
         }
         return Span.Context.INVALID;
     }
 
     pub fn end(span: Span, timestamp: ?i128) void {
         if (span.vtable) |vtable| {
-            vtable.end(span, timestamp);
+            vtable.end(span.ptr, timestamp);
         }
     }
 };
-
-pub const CreateSpanOptions = struct {
-    kind: SpanKind = .internal,
-    attributes: []const api.Attribute = &.{},
-    links: []const Link = &.{},
-    start_timestamp: ?i128 = null,
-};
-
-/// No options at the moment, but some may be added in the future.
-pub const EnabledOptions = struct {};
 
 pub const SpanKind = enum(u32) {
     unspecified = 0,
@@ -197,21 +211,19 @@ pub const Link = struct {
     attrs: []api.Attribute,
 };
 
-pub const VoidTracerProvider = struct {
-    pub fn getTracer(comptime instrumentation_scope: api.InstrumentationScope) VoidTracerProvider.Tracer {
-        _ = instrumentation_scope;
-        return .{};
-    }
+pub fn voidTracerProvider(comptime instrumentation_scope: api.InstrumentationScope) Tracer {
+    _ = instrumentation_scope;
+    return Tracer.NULL;
+}
 
-    pub const Tracer = struct {
-        pub fn createSpan(_: @This(), _: []const u8, _: ?api.Context, _: CreateSpanOptions) Span {
-            return Span.null;
-        }
-        pub fn enabled(_: @This(), _: EnabledOptions) bool {
-            return false;
-        }
-    };
-};
+pub fn voidContextExtractSpan(context: *const api.Context) ?api.trace.Span {
+    _ = context;
+    return Span.NULL;
+}
+pub fn voidContextWithSpan(context: *const api.Context, span: api.trace.Span) api.Context {
+    _ = span;
+    return context.*;
+}
 
 const api = @import("../api.zig");
 const std = @import("std");

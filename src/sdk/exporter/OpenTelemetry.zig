@@ -9,6 +9,7 @@ traces_uri_string: []const u8,
 traces_uri: std.Uri,
 
 bodies_mutex: std.Thread.Mutex = .{},
+message_notifier: std.Thread.Condition = .{},
 message_bodies_to_send: std.DoublyLinkedList(Message) = .{},
 
 const Message = struct {
@@ -51,20 +52,13 @@ pub fn spanExporter(this: *@This()) sdk.trace.SpanExporter {
 }
 
 pub const SPAN_EXPORTER_VTABLE = &sdk.trace.SpanExporter.VTable{
-    .configure = exporter_configure,
     .@"export" = exporter_export,
     .force_flush = exporter_forceFlush,
     .shutdown = exporter_shutdown,
 };
 
-fn exporter_configure(exporter: sdk.trace.SpanExporter, options: sdk.trace.SpanExporter.ConfigureOptions) void {
-    const this: *@This() = @ptrCast(@alignCast(exporter.ptr));
-
-    this.resource = options.resource;
-}
-
-fn exporter_export(exporter: sdk.trace.SpanExporter, batch: []const *sdk.trace.DynamicTracerProvider.Span) sdk.trace.SpanExporter.Result {
-    const this: *@This() = @ptrCast(@alignCast(exporter.ptr));
+fn exporter_export(this_opaque: ?*anyopaque, batch: []const sdk.trace.ReadableSpan) sdk.trace.SpanExporter.Result {
+    const this: *@This() = @ptrCast(@alignCast(this_opaque));
 
     this.exportFallible(batch) catch {
         return .failure;
@@ -73,7 +67,7 @@ fn exporter_export(exporter: sdk.trace.SpanExporter, batch: []const *sdk.trace.D
     return .success;
 }
 
-fn exportFallible(this: *@This(), batch: []const *sdk.trace.DynamicTracerProvider.Span) !void {
+fn exportFallible(this: *@This(), batch: []const sdk.trace.ReadableSpan) !void {
     const node = try this.allocator.create(std.DoublyLinkedList(Message).Node);
     errdefer this.allocator.destroy(node);
 
@@ -85,15 +79,15 @@ fn exportFallible(this: *@This(), batch: []const *sdk.trace.DynamicTracerProvide
     try records.resize(this.allocator, batch.len);
 
     for (records.items, batch) |*record, span| {
-        record.* = &span.record;
+        record.* = span.getData();
     }
 
     const trace_payload: TracePayload = .{
         .resourceSpans = &.{.{
-            .resource = this.resource,
+            .resource = batch[0].getData().resource,
             .scopeSpans = &.{
                 .{
-                    .scope = batch[0].record.scope,
+                    .scope = batch[0].getData().scope,
                     .spans = records.items,
                 },
             },
@@ -106,31 +100,26 @@ fn exportFallible(this: *@This(), batch: []const *sdk.trace.DynamicTracerProvide
     };
     errdefer this.allocator.free(node.data.payload);
 
-    this.bodies_mutex.lock();
-    defer this.bodies_mutex.unlock();
-    this.message_bodies_to_send.append(node);
+    {
+        this.bodies_mutex.lock();
+        defer this.bodies_mutex.unlock();
+        this.message_bodies_to_send.append(node);
+    }
+    this.message_notifier.signal();
 }
 
-// comptime lessThanFn: fn (@TypeOf(context), lhs: T, rhs: T) bool,
-// fn spanRecordLessThan(_: void, lhs: sdk.trace.SpanRecord, rhs: sdk.trace.SpanRecord) bool {
-//     switch (lhs.resource)
-// }
-
-fn exporter_forceFlush(exporter: sdk.trace.SpanExporter, listener: *sdk.trace.SpanExporter.ForceFlushResultListener) void {
-    _ = exporter;
+fn exporter_forceFlush(this_opaque: ?*anyopaque, listener: *sdk.trace.SpanExporter.ForceFlushResultListener) void {
+    const this: *@This() = @ptrCast(@alignCast(this_opaque));
+    _ = this;
     listener.callback(listener, .success);
 }
 
-fn exporter_shutdown(exporter: sdk.trace.SpanExporter) void {
-    const this: *@This() = @ptrCast(@alignCast(exporter.ptr));
+fn exporter_shutdown(this_opaque: ?*anyopaque) void {
+    const this: *@This() = @ptrCast(@alignCast(this_opaque));
     this.running = false;
+    this.message_notifier.signal();
     this.thread.join();
     this.allocator.free(this.traces_uri_string);
-
-    // for (this.resource_spans.values()) |scope_spans| {
-    //     scope_spans.deinit(this.allocator);
-    // }
-    // this.resource_spans.deinit(this.allocator);
 
     this.allocator.destroy(this);
 }
@@ -139,7 +128,7 @@ const TracePayload = struct {
     resourceSpans: []const ResourceSpan,
 
     const ResourceSpan = struct {
-        resource: ?*const sdk.Resource,
+        resource: *const sdk.Resource,
         scopeSpans: []const ScopeSpans,
     };
 
@@ -167,7 +156,10 @@ fn connectionThreadLoop(this: *@This()) !void {
         const node = get_next_node: {
             this.bodies_mutex.lock();
             defer this.bodies_mutex.unlock();
-            break :get_next_node this.message_bodies_to_send.pop() orelse continue;
+            break :get_next_node this.message_bodies_to_send.pop() orelse {
+                this.message_notifier.wait(&this.bodies_mutex);
+                continue;
+            };
         };
         defer {
             this.allocator.free(node.data.payload);

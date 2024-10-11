@@ -1,48 +1,40 @@
 const otel = @import("opentelemetry-sdk");
 
 pub const opentelemetry_options = otel.api.Options{
-    .tracer_provider = otel.trace.DynamicTracerProvider,
+    .tracer_provider = getTracer,
+    .context_extract_span = otel.trace.DynamicTracerProvider.contextExtractSpan,
+    .context_with_span = otel.trace.DynamicTracerProvider.contextWithSpan,
 };
 
-pub const tracer = otel.api.trace.getTracer(.{ .name = "zig.opentelemetry.examples.trace.dice" });
-
-fn initTelemetry(allocator: std.mem.Allocator) !void {
-    var resource = try otel.Resource.detect(allocator, .{});
-    errdefer resource.deinit(allocator);
-
-    const simple_span_processor = try otel.trace.SpanProcessor.Simple.create(allocator, .{});
-    errdefer simple_span_processor.spanProcessor().shutdown();
-
-    const batch_processor = try otel.trace.SpanProcessor.Batching.create(allocator, .{});
-    errdefer batch_processor.spanProcessor().shutdown();
-
-    const stderr_exporter = try otel.exporter.StdErr.create(allocator, .{});
-    errdefer stderr_exporter.spanExporter().shutdown();
-
-    const otlp_exporter = try otel.exporter.OpenTelemetry.create(allocator, .{});
-    errdefer otlp_exporter.spanExporter().shutdown();
-
-    try otel.trace.DynamicTracerProvider.init(allocator, .{
-        .resource = resource,
-        .pipelines = &.{
-            .{
-                .processor = batch_processor.spanProcessor(),
-                .exporter = otlp_exporter.spanExporter(),
-            },
-            .{
-                .processor = simple_span_processor.spanProcessor(),
-                .exporter = stderr_exporter.spanExporter(),
-            },
-        },
-    });
+var tracer_provider: *otel.trace.DynamicTracerProvider = undefined;
+fn getTracer(comptime scope: otel.api.InstrumentationScope) otel.api.trace.Tracer {
+    return tracer_provider.getTracer(scope);
 }
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer _ = gpa.deinit();
 
-    try initTelemetry(gpa.allocator());
-    defer otel.trace.DynamicTracerProvider.deinit();
+    const stderr_exporter = try otel.exporter.StdErr.create(gpa.allocator(), .{});
+    const simple_span_processor = try otel.trace.SpanProcessor.Simple.create(gpa.allocator(), stderr_exporter.spanExporter(), .{});
+
+    const otlp_exporter = try otel.exporter.OpenTelemetry.create(gpa.allocator(), .{});
+    const batching_span_processor = try otel.trace.SpanProcessor.Batching.create(gpa.allocator(), otlp_exporter.spanExporter(), .{});
+
+    tracer_provider = try otel.trace.DynamicTracerProvider.init(gpa.allocator(), .{
+        .resource = .{
+            .attributes = &.{
+                .{ .standard = .{ .@"service.name" = "opentelemetry_examples_trace_dice" } },
+            },
+        },
+        .span_processors = &.{
+            simple_span_processor.spanProcessor(),
+            batching_span_processor.spanProcessor(),
+        },
+    });
+    defer tracer_provider.shutdown();
+
+    const tracer = otel.api.trace.getTracer(.{ .name = "zig.opentelemetry.examples.trace.dice" });
 
     const args = try std.process.argsAlloc(gpa.allocator());
     defer std.process.argsFree(gpa.allocator(), args);

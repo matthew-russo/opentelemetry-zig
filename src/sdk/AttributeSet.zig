@@ -4,15 +4,30 @@
 //!
 //! Owns all the runtime memory it references. Must be passed the same allocator it was initialized with.
 
-kv: std.ArrayHashMapUnmanaged(Key, Value, StringTableContext, false) = .{},
+kv: KV = .{},
 string_table: std.ArrayListUnmanaged(u8) = .{},
 value_table: std.ArrayListUnmanaged(u8) = .{},
 dropped_attribute_count: u32 = 0,
 
-pub fn ensureTotalCapacity(this: *@This(), allocator: std.mem.Allocator, max_attributes: usize, max_string_bytes: usize, max_value_bytes: usize) !void {
-    try this.kv.ensureTotalCapacityContext(allocator, max_attributes, StringTableContext{ .string_table = this.string_table.items });
-    try this.string_table.ensureTotalCapacity(allocator, max_string_bytes);
-    try this.value_table.ensureTotalCapacity(allocator, max_value_bytes);
+const KV = std.ArrayHashMapUnmanaged(Key, Value, StringTableContext, false);
+
+pub const Limits = struct {
+    count_limit: usize = 128,
+    max_string_bytes: usize = 1024,
+    max_value_bytes: usize = 1024,
+    value_length_limit: ?usize = null,
+};
+
+pub fn sizeRequiredForLimits(limits: Limits) usize {
+    // this is not accurate, hopefully it's close enough
+    const bytes_required_for_kv = @sizeOf(KV) + limits.count_limit * (@sizeOf(Key) + @sizeOf(Value));
+    return 2 * (bytes_required_for_kv + limits.max_string_bytes + limits.max_value_bytes);
+}
+
+pub fn ensureTotalCapacity(this: *@This(), allocator: std.mem.Allocator, limits: Limits) !void {
+    try this.kv.ensureTotalCapacityContext(allocator, limits.count_limit, StringTableContext{ .string_table = this.string_table.items });
+    try this.string_table.ensureTotalCapacity(allocator, limits.max_string_bytes);
+    try this.value_table.ensureTotalCapacity(allocator, limits.max_value_bytes);
 }
 
 pub fn reset(this: *@This()) void {
@@ -20,6 +35,33 @@ pub fn reset(this: *@This()) void {
     this.string_table.clearRetainingCapacity();
     this.value_table.clearRetainingCapacity();
     this.dropped_attribute_count = 0;
+}
+
+pub const Size = struct {
+    attributes_count: usize,
+    string_table_bytes: usize,
+    value_table_bytes: usize,
+};
+
+pub fn sizeRequiredForList(attributes: []const api.Attribute) Size {
+    var total_key_bytes: usize = 0;
+    var total_value_bytes: usize = 0;
+    for (attributes) |attribute| {
+        switch (attribute) {
+            .standard => {},
+            .dynamic => |d| total_key_bytes += d.key.len,
+        }
+        const dynamic_value = switch (attribute) {
+            .standard => |standard_arg| standard_arg.asDynamicValue(),
+            .dynamic => |d| d.value,
+        };
+        total_value_bytes += sizeRequiredForDynamicValue(dynamic_value);
+    }
+    return .{
+        .attributes_count = attributes.len,
+        .string_table_bytes = total_key_bytes,
+        .value_table_bytes = total_value_bytes,
+    };
 }
 
 pub fn deinit(this: *@This(), allocator: std.mem.Allocator) void {
@@ -250,6 +292,27 @@ pub fn fromList(allocator: std.mem.Allocator, list: []const api.Attribute) !@Thi
         }
     }
     return set;
+}
+
+pub fn sizeRequiredForDynamicValue(value: api.attribute.Dynamic.Value) usize {
+    return switch (value) {
+        .string => |s| s.len,
+        .boolean => 0,
+        .double => 0,
+        .integer => 0,
+
+        .string_array => |array| blk: {
+            // We need len - 1 nul terminators
+            var bytes_required = array.len -| 1;
+            for (array) |string| {
+                bytes_required += string.len;
+            }
+            break :blk bytes_required;
+        },
+        .boolean_array => |array| array.len,
+        .double_array => |array| array.len * @sizeOf(f64) + @alignOf(f64),
+        .integer_array => |array| array.len * @sizeOf(i64) + @alignOf(i64),
+    };
 }
 
 const StringTableContext = struct {

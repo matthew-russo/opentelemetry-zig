@@ -29,6 +29,13 @@ pub const Attribute = union(enum) {
             .{ .standard = .{ .@"code.column" = src.column } },
         };
     }
+
+    pub fn jsonStringify(this: @This(), jw: anytype) !void {
+        switch (this) {
+            .dynamic => |dyn| try jw.write(dyn),
+            .standard => |standard| try standard.jsonStringify(jw),
+        }
+    }
 };
 
 pub const Type = enum {
@@ -308,6 +315,18 @@ pub const Standard = union(enum(u31)) {
         switch (this) {
             inline else => |val| return Dynamic.Value.fromType(@TypeOf(val), val),
         }
+    }
+
+    pub fn jsonStringify(this: @This(), jw: anytype) !void {
+        try jw.beginObject();
+
+        try jw.objectField("key");
+        try jw.write(@tagName(this));
+
+        try jw.objectField("value");
+        try jw.write(this.asDynamicValue());
+
+        try jw.endObject();
     }
 };
 

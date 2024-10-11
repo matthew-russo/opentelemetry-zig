@@ -119,7 +119,7 @@ pub const InstrumentCreateOptions = struct {
 
     pub const Advisory = struct {
         explicit_bucket_boundaries: []const f64 = null,
-        attributes: []const api.Attribute = null,
+        attributes: ?[]const api.Attribute = null,
     };
 };
 
@@ -184,7 +184,7 @@ pub fn ObservableCounter(T: type) type {
             advisory: ?Advisory = null,
 
             pub const Advisory = struct {
-                attributes: []const api.Attribute = null,
+                attributes: ?[]const api.Attribute = null,
             };
         };
 
@@ -220,8 +220,8 @@ pub fn Histogram(T: type) type {
             advisory: ?Advisory = null,
 
             pub const Advisory = struct {
-                explicit_bucket_boundaries: []const f64 = null,
-                attributes: []const api.Attribute = null,
+                explicit_bucket_boundaries: ?[]const f64 = null,
+                attributes: ?[]const api.Attribute = null,
             };
         };
 
@@ -246,7 +246,7 @@ pub fn Gauge(T: type) type {
             advisory: ?Advisory = null,
 
             pub const Advisory = struct {
-                attributes: []const api.Attribute = null,
+                attributes: ?[]const api.Attribute = null,
             };
         };
 
@@ -271,7 +271,7 @@ pub fn ObservableGauge(T: type) type {
             advisory: ?Advisory = null,
 
             pub const Advisory = struct {
-                attributes: []const api.Attribute = null,
+                attributes: ?[]const api.Attribute = null,
             };
         };
 
@@ -307,7 +307,7 @@ pub fn UpDownCounter(T: type) type {
             advisory: ?Advisory = null,
 
             pub const Advisory = struct {
-                attributes: []const api.Attribute = null,
+                attributes: ?[]const api.Attribute = null,
             };
         };
 
@@ -337,7 +337,7 @@ pub fn ObservableUpDownCounter(T: type) type {
             advisory: ?Advisory = null,
 
             pub const Advisory = struct {
-                attributes: []const api.Attribute = null,
+                attributes: ?[]const api.Attribute = null,
             };
         };
 

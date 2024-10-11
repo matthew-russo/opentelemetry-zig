@@ -12,11 +12,11 @@ else
 
 pub const Options = struct {
     enable: bool = true,
-    context_max_types: usize = 8,
-    context_size: usize = 32,
-    check_context_detach_order: bool = std.debug.runtime_safety,
-    tracer_provider: type = trace.VoidTracerProvider,
+    tracer_provider: trace.TracerProvider = trace.voidTracerProvider,
     meter_provider: metrics.MeterProvider = metrics.voidMeterProvider,
+
+    context_extract_span: trace.ContextExtractSpanFn = trace.voidContextExtractSpan,
+    context_with_span: trace.ContextWithSpanFn = trace.voidContextWithSpan,
 };
 
 pub const InstrumentationScope = struct {
@@ -32,16 +32,27 @@ pub const Context = struct {
     /// This should not be accessed directly.
     prev_context: ?*const Context,
     /// This should not be accessed directly.
-    value_exists: std.StaticBitSet(options.context_max_types),
+    value_exists: std.StaticBitSet(global_options.max_types),
     /// This should not be accessed directly.
-    bytes: [options.context_size]u8,
+    bytes: [global_options.size]u8,
+
+    pub const GlobalOptions = struct {
+        max_types: usize = 8,
+        size: usize = 32,
+        check_detach_order: bool = std.debug.runtime_safety,
+    };
+
+    pub const global_options: Context.GlobalOptions = if (@hasDecl(root, "opentelemetry_context_options"))
+        root.opentelemetry_context_options
+    else
+        .{};
 
     const TypeOffset = struct {
         name: [*:0]const u8,
         offset: u32,
     };
 
-    threadlocal var type_offsets: std.BoundedArray(TypeOffset, options.context_max_types) = .{};
+    threadlocal var type_offsets: std.BoundedArray(TypeOffset, global_options.max_types) = .{};
     threadlocal var next_type_offset: u32 = 0;
 
     fn getTypeOffset(T: type) struct { u32, u32 } {
@@ -51,7 +62,7 @@ pub const Context = struct {
             }
         }
         const next_aligned_offset = std.mem.alignForward(u32, next_type_offset, @alignOf(T));
-        if (next_aligned_offset + @sizeOf(T) >= options.context_size) {
+        if (next_aligned_offset + @sizeOf(T) >= Context.global_options.size) {
             @panic("Could not allocate space in Context for type " ++ @typeName(T));
         }
 
@@ -87,7 +98,7 @@ pub const Context = struct {
 
     const BASE_CONTEXT: Context = .{
         .prev_context = null,
-        .value_exists = std.StaticBitSet(options.context_max_types).initEmpty(),
+        .value_exists = std.StaticBitSet(global_options.max_types).initEmpty(),
         .bytes = undefined,
     };
     threadlocal var current_context: *const Context = &BASE_CONTEXT;

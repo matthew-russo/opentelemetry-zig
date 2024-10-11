@@ -1,4 +1,4 @@
-attributes: sdk.AttributeSet,
+attributes: []const api.Attribute,
 
 pub const DetectOptions = struct {
     /// If not provided, will be automatically detected from first command line argument.
@@ -11,6 +11,17 @@ pub const TELEMETRY_SDK = .{
     .@"telemetry.sdk.name" = "opentelemetry-zig",
     .@"telemetry.sdk.version" = "0.0.0",
 };
+
+pub fn initStatic(@"service.name": []const u8) @This() {
+    return .{
+        .attributes = &.{
+            .{ .standard = .{ .@"service.name" = @"service.name" } },
+            .{ .standard = .{ .@"telemetry.sdk.language" = TELEMETRY_SDK.@"telemetry.sdk.language" } },
+            .{ .standard = .{ .@"telemetry.sdk.name" = TELEMETRY_SDK.@"telemetry.sdk.name" } },
+            .{ .standard = .{ .@"telemetry.sdk.version" = TELEMETRY_SDK.@"telemetry.sdk.version" } },
+        },
+    };
+}
 
 pub fn detect(allocator: std.mem.Allocator, options: DetectOptions) !@This() {
     var arena = std.heap.ArenaAllocator.init(allocator);
