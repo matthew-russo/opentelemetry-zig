@@ -80,4 +80,45 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_api_lib_unit_tests.step);
     test_step.dependOn(&run_sdk_lib_unit_tests.step);
+
+    // examples
+
+    const example_logs_exe = b.addExecutable(.{
+        .name = "example_logs_exe",
+        .root_source_file = b.path("examples/logs.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    example_logs_exe.root_module.addImport("opentelemetry-api", &api_lib.root_module);
+    example_logs_exe.root_module.addImport("opentelemetry-sdk", &sdk_lib.root_module);
+    b.installArtifact(example_logs_exe);
+
+    const example_metrics_exe = b.addExecutable(.{
+        .name = "example_metrics_exe",
+        .root_source_file = b.path("examples/metrics.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    example_metrics_exe.root_module.addImport("opentelemetry-api", &api_lib.root_module);
+    example_metrics_exe.root_module.addImport("opentelemetry-sdk", &sdk_lib.root_module);
+    b.installArtifact(example_metrics_exe);
+
+    const example_traces_exe = b.addExecutable(.{
+        .name = "example_traces_exe",
+        .root_source_file = b.path("examples/traces.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    example_traces_exe.root_module.addImport("opentelemetry-api", &api_lib.root_module);
+    example_traces_exe.root_module.addImport("opentelemetry-sdk", &sdk_lib.root_module);
+    b.installArtifact(example_traces_exe);
+
+    const run_logs_example_exe = b.addRunArtifact(example_logs_exe);
+    const run_metrics_example_exe = b.addRunArtifact(example_metrics_exe);
+    const run_traces_example_exe = b.addRunArtifact(example_traces_exe);
+
+    const run_step = b.step("run", "Run the application");
+    run_step.dependOn(&run_logs_example_exe.step);
+    run_step.dependOn(&run_metrics_example_exe.step);
+    run_step.dependOn(&run_traces_example_exe.step);
 }
