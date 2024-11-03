@@ -70,7 +70,6 @@ pub const StdoutLogger = struct {
     }
 
     pub fn emit(self: *Self, log_record: otel_api.logs.LogRecord) void {
-        // [SEVERITY] name.version schema_url [timestamp,observed_timestamp]
         // TODO:
         //   - self.severity_number
         //   - self.version
