@@ -176,6 +176,13 @@ pub const LogType = union(enum) {
     }
 };
 
+pub const SEVERITY_TRACE_NAME: []const u8 = "TRACE";
+pub const SEVERITY_DEBUG_NAME: []const u8 = "DEBUG";
+pub const SEVERITY_INFO_NAME: []const u8 = "INFO";
+pub const SEVERITY_WARN_NAME: []const u8 = "WARN";
+pub const SEVERITY_ERROR_NAME: []const u8 = "ERROR";
+pub const SEVERITY_FATAL_NAME: []const u8 = "FATAL";
+
 pub const Severity = enum(u8) {
     Trace = 1,
     Trace2 = 2,
