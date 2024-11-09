@@ -49,15 +49,15 @@ pub const InMemoryTracer = struct {
         self: *Self,
         name: []const u8,
         ctx: ?otel_api.context.Context,
-        maybe_kind: ?otel_api.traces.Kind,
+        maybe_kind: ?otel_api.span.Kind,
         attrs: []otel_api.attribute.Attribute,
-        links: []otel_api.traces.Link,
+        links: []otel_api.span.Link,
         maybe_start: ?u64,
-    ) otel_api.traces.Span {
+    ) otel_api.span.Span {
         _ = self;
         _ = ctx;
 
-        const kind = if (maybe_kind) |k| k else otel_api.traces.Kind.Internal;
+        const kind = if (maybe_kind) |k| k else otel_api.span.Kind.Internal;
         const start: u64 = if (maybe_start) |s| s else blk: {
             const nanosecs: u128 = @intCast(std.time.nanoTimestamp());
             const maxU64: u64 = std.math.maxInt(u64);
@@ -66,7 +66,7 @@ pub const InMemoryTracer = struct {
             break :blk @truncate(nanosecs);
         };
 
-        return otel_api.traces.Span{
+        return otel_api.span.Span{
             .name = name,
             .ctx = std.debug.panic("todo: convert otel_api.context.Context to SpanContext", .{}),
             .parent = null,
@@ -76,7 +76,7 @@ pub const InMemoryTracer = struct {
             .attrs = attrs,
             .links = links,
             .events = undefined,
-            .status = otel_api.traces.Status.Unset,
+            .status = otel_api.span.Status.Unset,
         };
     }
 };

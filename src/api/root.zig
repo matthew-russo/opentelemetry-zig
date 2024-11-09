@@ -6,6 +6,7 @@ pub const context = @import("context.zig");
 pub const logs = @import("logs.zig");
 pub const metrics = @import("metrics.zig");
 pub const resource = @import("resource.zig");
+pub const span = @import("span.zig");
 pub const traces = @import("traces.zig");
 
 pub const Options = struct {

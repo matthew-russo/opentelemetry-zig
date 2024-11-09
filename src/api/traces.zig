@@ -2,6 +2,7 @@ const std = @import("std");
 
 const attribute = @import("./attribute.zig");
 const context = @import("./context.zig");
+const span = @import("./span.zig");
 
 // A global TracerProvider, interacted with through the apis:
 // - setDefaultTraceProvider
@@ -118,11 +119,11 @@ pub const Tracer = struct {
         *anyopaque,
         []const u8,
         ?context.Context,
-        ?Kind,
+        ?span.Kind,
         []attribute.Attribute,
-        []Link,
+        []span.Link,
         ?u64,
-    ) Span,
+    ) span.Span,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
@@ -136,11 +137,11 @@ pub const Tracer = struct {
                 pointer: *anyopaque,
                 name: []const u8,
                 ctx: ?context.Context,
-                kind: ?Kind,
+                kind: ?span.Kind,
                 attrs: []attribute.Attribute,
-                links: []Link,
+                links: []span.Link,
                 start: ?u64,
-            ) Span {
+            ) span.Span {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.pointer.child.createSpan, .{
                     self,
@@ -164,11 +165,11 @@ pub const Tracer = struct {
         self: *Self,
         name: []const u8,
         ctx: ?context.Context,
-        kind: ?Kind,
+        kind: ?span.Kind,
         attrs: []attribute.Attribute,
-        links: []Link,
+        links: []span.Link,
         start: ?u64,
-    ) Span {
+    ) span.Span {
         return self.createSpanFn(
             self.ptr,
             name,
@@ -179,71 +180,4 @@ pub const Tracer = struct {
             start,
         );
     }
-};
-
-pub const Flags = struct {
-    sampled: bool,
-};
-
-pub const TraceState = struct {
-    values: []std.meta.Tuple(&.{ []const u8, []const u8 }),
-};
-
-pub const SpanContext = struct {
-    const Self = @This();
-
-    trace_id: [16]u8,
-    span_id: [8]u8,
-    flags: Flags,
-    state: TraceState,
-    is_remote: bool,
-
-    pub fn init(trace_id: [16]u8, span_id: [8]u8, flags: Flags, state: TraceState, is_remote: bool) Self {
-        return Self{
-            .trace_id = trace_id,
-            .span_id = span_id,
-            .flags = flags,
-            .state = state,
-            .is_remote = is_remote,
-        };
-    }
-};
-
-pub const Kind = enum {
-    Server,
-    Client,
-    Producer,
-    Consumer,
-    Internal,
-};
-
-pub const Link = struct {
-    ctx: SpanContext,
-    attrs: []attribute.Attribute,
-};
-
-pub const Event = struct {
-    name: []const u8,
-    timestamp: u64,
-    attrs: []const attribute.Attribute,
-};
-
-pub const Status = union(enum) {
-    Unset,
-    Ok,
-    Error: []const u8,
-};
-
-// TODO [matthew-russo 03-23-24] this should be an interface
-pub const Span = struct {
-    name: []const u8,
-    ctx: SpanContext,
-    parent: ?*Span,
-    kind: Kind,
-    start: u64,
-    end: u64,
-    attrs: []attribute.Attribute,
-    links: []const Link,
-    events: []const Event,
-    status: Status,
 };
