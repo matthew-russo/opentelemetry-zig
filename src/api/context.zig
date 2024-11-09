@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const span = @import("./span.zig");
+
 threadlocal var current_context: ?Context = null;
 
 pub fn getCurrentContext() *?Context {
@@ -46,11 +48,24 @@ pub const Context = struct {
     const Self = @This();
 
     allocator: std.mem.Allocator,
+
+    span: ?span.Span,
     values: std.StringHashMap(ContextValue),
 
     pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
             .allocator = allocator,
+
+            .span = null,
+            .values = std.StringHashMap(ContextValue).init(allocator),
+        };
+    }
+
+    pub fn initWithSpan(allocator: std.mem.Allocator, s: span.Span) Self {
+        return Self{
+            .allocator = allocator,
+
+            .span = s,
             .values = std.StringHashMap(ContextValue).init(allocator),
         };
     }
@@ -62,9 +77,27 @@ pub const Context = struct {
     pub fn clone(self: *const Self) Self {
         return Self{
             .allocator = self.allocator,
+            .span = self.span,
             // ignore OOMs
             .values = self.values.clone() catch unreachable,
         };
+    }
+
+    pub fn withSpan(self: *Self, s: span.Span) Self {
+        return Self{
+            .allocator = self.allocator,
+            .span = s,
+            // ignore OOMs
+            .values = self.values.clone() catch unreachable,
+        };
+    }
+
+    pub fn getSpan(self: *Self) ?*span.Span {
+        if (self.span) |*s| {
+            return s;
+        } else {
+            return null;
+        }
     }
 
     pub fn getValue(self: *const Self, name: []const u8) ?ContextValue {
@@ -104,6 +137,61 @@ test "can construct Context" {
     _ = Context.init(std.testing.allocator);
 }
 
+test "can construct Context with a Span" {
+    _ = Context.initWithSpan(std.testing.allocator, span.Span{
+        .name = "test_span",
+        .ctx = span.SpanContext.init(
+            span.TraceId.invalid(),
+            span.SpanId.invalid(),
+            span.Flags.init(),
+            span.TraceState.init(),
+            false, // is_remote
+        ),
+        .parent = null,
+        .kind = span.Kind.Internal,
+        .start = 0,
+        .end = 1,
+        .attrs = undefined,
+        .links = undefined,
+        .events = undefined,
+        .status = span.Status.Unset,
+    });
+}
+
+test "can fetch the current Span from the Context" {
+    var without_span = Context.init(std.testing.allocator);
+    try std.testing.expectEqual(without_span.getSpan(), null);
+
+    var with_span = Context.initWithSpan(std.testing.allocator, span.Span{
+        .name = "test_span",
+        .ctx = span.SpanContext.init(
+            span.TraceId.invalid(),
+            span.SpanId.invalid(),
+            span.Flags.init(),
+            span.TraceState.init(),
+            false, // is_remote
+        ),
+        .parent = null,
+        .kind = span.Kind.Internal,
+        .start = 0,
+        .end = 1,
+        .attrs = undefined,
+        .links = undefined,
+        .events = undefined,
+        .status = span.Status.Unset,
+    });
+    const borrowed_span = with_span.getSpan();
+    if (borrowed_span) |s| {
+        try std.testing.expectEqualStrings(s.name, "test_span");
+        try std.testing.expectEqual(s.kind, span.Kind.Internal);
+        try std.testing.expectEqual(s.start, 0);
+        try std.testing.expectEqual(s.end, 1);
+        try std.testing.expectEqual(s.status, span.Status.Unset);
+    } else {
+        std.debug.panic("span should have been present after constructing with span", .{});
+    }
+}
+
 test "can insert a value into Context" {
     var ctx = Context.init(std.testing.allocator);
     defer ctx.deinit();
@@ -121,14 +209,75 @@ test "can get an inserted value from Context" {
 test "can clone Context" {
     var ctx = Context.init(std.testing.allocator);
     defer ctx.deinit();
+
+    ctx.setValue("before", ContextValue{ .value = "before_value" });
+    var value = ctx.getValue("before").?;
+    try std.testing.expectEqualStrings(value.value, "before_value");
+
     var new_ctx = ctx.clone();
     defer new_ctx.deinit();
-    new_ctx.setValue("test", ContextValue{ .value = "test_value" });
-    if (ctx.getValue("test")) |_| {
+
+    new_ctx.setValue("after", ContextValue{ .value = "after_value" });
+    if (ctx.getValue("after")) |_| {
         std.debug.panic("original context should not have been updated", .{});
     }
-    const value = new_ctx.getValue("test").?;
-    try std.testing.expectEqualStrings(value.value, "test_value");
+
+    // cloned context should have both values
+    value = new_ctx.getValue("before").?;
+    try std.testing.expectEqualStrings(value.value, "before_value");
+    value = new_ctx.getValue("after").?;
+    try std.testing.expectEqualStrings(value.value, "after_value");
+}
+
+test "can associate a Span with a Context" {
+    var ctx = Context.init(std.testing.allocator);
+    defer ctx.deinit();
+
+    ctx.setValue("before", ContextValue{ .value = "before_value" });
+    var value = ctx.getValue("before").?;
+    try std.testing.expectEqualStrings(value.value, "before_value");
+
+    var new_ctx = ctx.withSpan(span.Span{
+        .name = "test_span",
+        .ctx = span.SpanContext.init(
+            span.TraceId.invalid(),
+            span.SpanId.invalid(),
+            span.Flags.init(),
+            span.TraceState.init(),
+            false, // is_remote
+        ),
+        .parent = null,
+        .kind = span.Kind.Internal,
+        .start = 0,
+        .end = 1,
+        .attrs = undefined,
+        .links = undefined,
+        .events = undefined,
+        .status = span.Status.Unset,
+    });
+    defer new_ctx.deinit();
+
+    new_ctx.setValue("after", ContextValue{ .value = "after_value" });
+    if (ctx.getValue("after")) |_| {
+        std.debug.panic("original context should not have been updated", .{});
+    }
+
+    // new context should have both values
+    value = new_ctx.getValue("before").?;
+    try std.testing.expectEqualStrings(value.value, "before_value");
+    value = new_ctx.getValue("after").?;
+    try std.testing.expectEqualStrings(value.value, "after_value");
+
+    const borrowed_span = new_ctx.getSpan();
+    if (borrowed_span) |s| {
+        try std.testing.expectEqualStrings(s.name, "test_span");
+        try std.testing.expectEqual(s.kind, span.Kind.Internal);
+        try std.testing.expectEqual(s.start, 0);
+        try std.testing.expectEqual(s.end, 1);
+        try std.testing.expectEqual(s.status, span.Status.Unset);
+    } else {
+        std.debug.panic("span should have been present after constructing with span", .{});
+    }
 }
 
 test "can immutably generate new Context with value" {
