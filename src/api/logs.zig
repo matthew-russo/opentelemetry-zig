@@ -3,39 +3,6 @@ const std = @import("std");
 const attribute = @import("./attribute.zig");
 const resource = @import("./resource.zig");
 
-// A global LoggerProvider, interacted with through the apis:
-// - setDefaultLoggerProvider
-// - unsetDefaultLoggerProvider
-// - getDefaultLoggerProvider
-//
-// This global variable is not thread safe
-var global_logger_provider: ?LoggerProvider = null;
-
-/// Set the default LoggerProvider to the provided implementation
-///
-/// # Concurrency
-/// This api is not thread-safe. Its intended to be called once during application
-/// initialization
-pub fn setDefaultLoggerProvider(logger_provider: LoggerProvider) void {
-    global_logger_provider = logger_provider;
-}
-
-/// Unset the default LoggerProvider
-///
-/// # Concurrency
-/// This api is not thread-safe.
-pub fn unsetDefaultLoggerProvider() void {
-    global_logger_provider = null;
-}
-
-/// Get the default LoggerProvider, if any.
-///
-/// # Concurrency
-/// This api is not thread-safe.
-pub fn getDefaultLoggerProvider() *?LoggerProvider {
-    return &global_logger_provider;
-}
-
 pub const LoggerProvider = struct {
     const Self = @This();
 

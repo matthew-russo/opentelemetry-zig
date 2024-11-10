@@ -1,6 +1,8 @@
 const std = @import("std");
+const oasis = @import("oasis");
 
 const attribute = @import("./attribute.zig");
+const root = @import("./root.zig");
 
 pub const TraceId = struct {
     const Self = @This();
@@ -10,6 +12,13 @@ pub const TraceId = struct {
     pub fn init(v: u128) Self {
         return Self{
             .value = v,
+        };
+    }
+
+    pub fn random() Self {
+        var rng = root.options.rng.random();
+        return Self{
+            .value = rng.int(u128),
         };
     }
 
@@ -55,6 +64,13 @@ pub const SpanId = struct {
     pub fn init(v: u64) Self {
         return Self{
             .value = v,
+        };
+    }
+
+    pub fn random() Self {
+        var rng = root.options.rng.random();
+        return Self{
+            .value = rng.int(u64),
         };
     }
 
@@ -107,10 +123,13 @@ pub const Flags = struct {
 pub const TraceState = struct {
     const Self = @This();
 
+    allocator: std.mem.Allocator,
+
     values: []std.meta.Tuple(&.{ []const u8, []const u8 }),
 
-    pub fn init() Self {
+    pub fn init(allocator: std.mem.Allocator) Self {
         return Self{
+            .allocator = allocator,
             .values = undefined,
         };
     }
@@ -143,11 +162,11 @@ pub const SpanContext = struct {
 };
 
 pub const Kind = enum {
-    Server,
-    Client,
-    Producer,
-    Consumer,
-    Internal,
+    server,
+    client,
+    producer,
+    consumer,
+    internal,
 };
 
 pub const Link = struct {
@@ -162,23 +181,67 @@ pub const Event = struct {
 };
 
 pub const Status = union(enum) {
-    Unset,
-    Ok,
-    Error: []const u8,
+    unset,
+    ok,
+    err: []const u8,
+};
+
+pub const ParentSpan = union(enum) {
+    span: *Span,
+    span_ctx: SpanContext,
 };
 
 pub const Span = struct {
+    const Self = @This();
+
+    allocator: std.mem.Allocator,
+
     name: []const u8,
     ctx: SpanContext,
-    parent: ?*Span,
+    parent: ?ParentSpan,
     kind: Kind,
     start: u64,
     end: u64,
-    attrs: []attribute.Attribute,
-    links: []const Link,
-    events: []const Event,
+    attrs: std.ArrayList(attribute.Attribute),
+    links: std.ArrayList(Link),
+    events: std.ArrayList(Event),
     status: Status,
+
+    pub fn init(
+        allocator: std.mem.Allocator,
+        name: []const u8,
+        ctx: SpanContext,
+        parent: ?ParentSpan,
+        start: u64,
+    ) Self {
+        return Self{
+            .allocator = allocator,
+
+            .name = name,
+            .ctx = ctx,
+            .parent = parent,
+            .kind = Kind.internal,
+            .start = start,
+            .end = 0,
+            .attrs = std.ArrayList(attribute.Attribute).init(allocator),
+            .links = std.ArrayList(Link).init(allocator),
+            .events = std.ArrayList(Event).init(allocator),
+            .status = Status.unset,
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.attrs.deinit();
+        self.links.deinit();
+        self.events.deinit();
+    }
 };
+
+test "TraceId.random" {
+    const trace_id1 = TraceId.random();
+    const trace_id2 = TraceId.random();
+    try std.testing.expect(trace_id1.value != trace_id2.value);
+}
 
 test "TraceId.fromHex" {
     const trace_id_and_expected_hexs = [5]struct { TraceId, []const u8 }{
@@ -245,6 +308,12 @@ test "TraceId.toBytes" {
         const bytes = trace_id.toBytes();
         try std.testing.expectEqual(expected_bytes, bytes);
     }
+}
+
+test "SpanId.random" {
+    const span_id1 = SpanId.random();
+    const span_id2 = SpanId.random();
+    try std.testing.expect(span_id1.value != span_id2.value);
 }
 
 test "SpanId.fromHex" {

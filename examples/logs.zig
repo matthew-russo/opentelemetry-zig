@@ -20,7 +20,7 @@ pub fn main() void {
     // write logs with LoggerProvider set at level debug
     const logger_provider = allocator.create(otel_sdk.logs.appenders.debug_stdout.StdoutLoggerProvider) catch unreachable;
     logger_provider.* = otel_sdk.logs.appenders.debug_stdout.StdoutLoggerProvider.init(allocator);
-    otel_api.logs.setDefaultLoggerProvider(otel_api.logs.LoggerProvider.init(logger_provider));
+    otel_api.global.setLoggerProvider(otel_api.logs.LoggerProvider.init(logger_provider));
 
     stdlibLogs();
 }

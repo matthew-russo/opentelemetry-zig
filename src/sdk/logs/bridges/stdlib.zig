@@ -1,4 +1,5 @@
 const std = @import("std");
+const oasis = @import("oasis");
 
 const otel_api = @import("opentelemetry-api");
 
@@ -8,7 +9,7 @@ pub fn stdlibOtelLogBridge(
     comptime format: []const u8,
     args: anytype,
 ) void {
-    if (otel_api.logs.getDefaultLoggerProvider().*) |*lp| {
+    if (otel_api.global.getLoggerProvider().*) |*lp| {
         // TODO [matthew-russo] store a global map of loggers and have some
         // lifecycle to clean them up
         var logger = lp.getLogger(
@@ -18,14 +19,6 @@ pub fn stdlibOtelLogBridge(
             undefined, // attributes
         );
         defer lp.destroyLogger(logger);
-
-        // posix systems return a timespec, convert it to a u64
-        const now_instant = std.time.Instant.now() catch unreachable;
-        const timespec = now_instant.timestamp;
-        const secs_as_u64: u64 = @intCast(timespec.sec);
-        const nsecs_as_u64: u64 = @intCast(timespec.nsec);
-        const secs_as_ns = secs_as_u64 * std.time.ns_per_s;
-        const now = secs_as_ns + nsecs_as_u64;
 
         var severity_text = otel_api.logs.SEVERITY_TRACE_NAME;
         var severity_number = otel_api.logs.Severity.Trace;
@@ -51,6 +44,7 @@ pub fn stdlibOtelLogBridge(
         const msg = std.fmt.allocPrint(otel_api.options.logs_allocator, format, args) catch unreachable;
         defer otel_api.options.logs_allocator.free(msg);
 
+        const now = oasis.time.nanosSinceEpoch();
         const log_record = otel_api.logs.LogRecord{
             .timestamp = now,
             .observed_timestamp = now,

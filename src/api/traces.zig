@@ -4,39 +4,6 @@ const attribute = @import("./attribute.zig");
 const context = @import("./context.zig");
 const span = @import("./span.zig");
 
-// A global TracerProvider, interacted with through the apis:
-// - setDefaultTraceProvider
-// - unsetDefaultTraceProvider
-// - getDefaultTraceProvider
-//
-// This global variable is not thread safe
-var global_tracer_provider: ?TracerProvider = null;
-
-/// Set the default TracerProvider to the provided implementation
-///
-/// # Concurrency
-/// This api is not thread-safe. Its intended to be called once during application
-/// initialization
-pub fn setDefaultTracerProvider(tracer_provider: TracerProvider) void {
-    global_tracer_provider = tracer_provider;
-}
-
-/// Unset the default TracerProvider
-///
-/// # Concurrency
-/// This api is not thread-safe.
-pub fn unsetDefaultTracerProvider() void {
-    global_tracer_provider = null;
-}
-
-/// Get the default TracerProvider, if any.
-///
-/// # Concurrency
-/// This api is not thread-safe.
-pub fn getDefaultTracerProvider() *?TracerProvider {
-    return &global_tracer_provider;
-}
-
 pub const TracerProvider = struct {
     const Self = @This();
 
@@ -118,10 +85,7 @@ pub const Tracer = struct {
     createSpanFn: *const fn (
         *anyopaque,
         []const u8,
-        ?context.Context,
-        ?span.Kind,
-        []attribute.Attribute,
-        []span.Link,
+        ?*context.Context,
         ?u64,
     ) span.Span,
 
@@ -136,10 +100,7 @@ pub const Tracer = struct {
             pub fn createSpanImpl(
                 pointer: *anyopaque,
                 name: []const u8,
-                ctx: ?context.Context,
-                kind: ?span.Kind,
-                attrs: []attribute.Attribute,
-                links: []span.Link,
+                ctx: ?*context.Context,
                 start: ?u64,
             ) span.Span {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
@@ -147,9 +108,6 @@ pub const Tracer = struct {
                     self,
                     name,
                     ctx,
-                    kind,
-                    attrs,
-                    links,
                     start,
                 });
             }
@@ -164,19 +122,13 @@ pub const Tracer = struct {
     pub fn createSpan(
         self: *Self,
         name: []const u8,
-        ctx: ?context.Context,
-        kind: ?span.Kind,
-        attrs: []attribute.Attribute,
-        links: []span.Link,
+        ctx: ?*context.Context,
         start: ?u64,
     ) span.Span {
         return self.createSpanFn(
             self.ptr,
             name,
             ctx,
-            kind,
-            attrs,
-            links,
             start,
         );
     }

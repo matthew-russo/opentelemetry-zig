@@ -4,14 +4,18 @@ const span = @import("./span.zig");
 
 threadlocal var current_context: ?Context = null;
 
-pub fn getCurrentContext() *?Context {
-    return &current_context;
+pub fn getCurrentContext() ?*Context {
+    if (current_context) |*ctx| {
+        return ctx;
+    } else {
+        return null;
+    }
 }
 
 pub fn attachContext(new_ctx: Context) ContextGuard {
-    if (getCurrentContext().*) |curr_ctx| {
+    if (getCurrentContext()) |curr_ctx| {
         const ctx_guard = ContextGuard{
-            .prev_ctx = curr_ctx,
+            .prev_ctx = curr_ctx.*,
             .ctx = new_ctx,
         };
         current_context = new_ctx;
@@ -138,55 +142,44 @@ test "can construct Context" {
 }
 
 test "can construct Context with a Span" {
-    _ = Context.initWithSpan(std.testing.allocator, span.Span{
-        .name = "test_span",
-        .ctx = span.SpanContext.init(
+    _ = Context.initWithSpan(std.testing.allocator, span.Span.init(
+        std.testing.allocator,
+        "test_span",
+        span.SpanContext.init(
             span.TraceId.invalid(),
             span.SpanId.invalid(),
             span.Flags.init(),
-            span.TraceState.init(),
+            span.TraceState.init(std.testing.allocator),
             false, // is_remote
         ),
-        .parent = null,
-        .kind = span.Kind.Internal,
-        .start = 0,
-        .end = 1,
-        .attrs = undefined,
-        .links = undefined,
-        .events = undefined,
-        .status = span.Status.Unset,
-    });
+        null, // parent
+        0,
+    ));
 }
 
 test "can fetch the current Span from the Context" {
     var without_span = Context.init(std.testing.allocator);
     try std.testing.expectEqual(without_span.getSpan(), null);
 
-    var with_span = Context.initWithSpan(std.testing.allocator, span.Span{
-        .name = "test_span",
-        .ctx = span.SpanContext.init(
+    var with_span = Context.initWithSpan(std.testing.allocator, span.Span.init(
+        std.testing.allocator,
+        "test_span",
+        span.SpanContext.init(
             span.TraceId.invalid(),
             span.SpanId.invalid(),
             span.Flags.init(),
-            span.TraceState.init(),
+            span.TraceState.init(std.testing.allocator),
             false, // is_remote
         ),
-        .parent = null,
-        .kind = span.Kind.Internal,
-        .start = 0,
-        .end = 1,
-        .attrs = undefined,
-        .links = undefined,
-        .events = undefined,
-        .status = span.Status.Unset,
-    });
+        null, // parent
+        0,
+    ));
     const borrowed_span = with_span.getSpan();
     if (borrowed_span) |s| {
         try std.testing.expectEqualStrings(s.name, "test_span");
-        try std.testing.expectEqual(s.kind, span.Kind.Internal);
+        try std.testing.expectEqual(s.kind, span.Kind.internal);
         try std.testing.expectEqual(s.start, 0);
-        try std.testing.expectEqual(s.end, 1);
-        try std.testing.expectEqual(s.status, span.Status.Unset);
+        try std.testing.expectEqual(s.status, span.Status.unset);
     } else {
         std.debug.panic("span should have been present after constructing with span", .{});
     }
@@ -237,24 +230,19 @@ test "can associate a Span with a Context" {
     var value = ctx.getValue("before").?;
     try std.testing.expectEqualStrings(value.value, "before_value");
 
-    var new_ctx = ctx.withSpan(span.Span{
-        .name = "test_span",
-        .ctx = span.SpanContext.init(
+    var new_ctx = ctx.withSpan(span.Span.init(
+        std.testing.allocator,
+        "test_span",
+        span.SpanContext.init(
             span.TraceId.invalid(),
             span.SpanId.invalid(),
             span.Flags.init(),
-            span.TraceState.init(),
+            span.TraceState.init(std.testing.allocator),
             false, // is_remote
         ),
-        .parent = null,
-        .kind = span.Kind.Internal,
-        .start = 0,
-        .end = 1,
-        .attrs = undefined,
-        .links = undefined,
-        .events = undefined,
-        .status = span.Status.Unset,
-    });
+        null, // parent
+        0,
+    ));
     defer new_ctx.deinit();
 
     new_ctx.setValue("after", ContextValue{ .value = "after_value" });
@@ -271,10 +259,9 @@ test "can associate a Span with a Context" {
     const borrowed_span = new_ctx.getSpan();
     if (borrowed_span) |s| {
         try std.testing.expectEqualStrings(s.name, "test_span");
-        try std.testing.expectEqual(s.kind, span.Kind.Internal);
+        try std.testing.expectEqual(s.kind, span.Kind.internal);
         try std.testing.expectEqual(s.start, 0);
-        try std.testing.expectEqual(s.end, 1);
-        try std.testing.expectEqual(s.status, span.Status.Unset);
+        try std.testing.expectEqual(s.status, span.Status.unset);
     } else {
         std.debug.panic("span should have been present after constructing with span", .{});
     }
@@ -295,7 +282,7 @@ test "can immutably generate new Context with value" {
 test "can attach Context to thread" {
     clearCurrentContext();
 
-    if (getCurrentContext().*) |_| {
+    if (getCurrentContext()) |_| {
         std.debug.panic("current context shouldn't be set yet", .{});
     }
 
@@ -304,7 +291,7 @@ test "can attach Context to thread" {
     ctx.setValue("test", ContextValue{ .value = "test_value" });
     _ = ctx.attach();
 
-    if (getCurrentContext().*) |curr_ctx| {
+    if (getCurrentContext()) |curr_ctx| {
         const value = curr_ctx.getValue("test").?;
         try std.testing.expectEqualStrings(value.value, "test_value");
     }
@@ -313,7 +300,7 @@ test "can attach Context to thread" {
 test "can detach Context from a thread" {
     clearCurrentContext();
 
-    if (getCurrentContext().*) |_| {
+    if (getCurrentContext()) |_| {
         std.debug.panic("current context shouldn't be set yet", .{});
     }
 
@@ -322,7 +309,7 @@ test "can detach Context from a thread" {
     ctx.setValue("test", ContextValue{ .value = "test_value" });
     var guard = ctx.attach();
 
-    if (getCurrentContext().*) |curr_ctx| {
+    if (getCurrentContext()) |curr_ctx| {
         const value = curr_ctx.getValue("test").?;
         try std.testing.expectEqualStrings(value.value, "test_value");
     } else {
@@ -331,7 +318,7 @@ test "can detach Context from a thread" {
 
     guard.detach();
 
-    if (getCurrentContext().*) |_| {
+    if (getCurrentContext()) |_| {
         std.debug.panic("current context should have been unset by detach", .{});
     }
 }
@@ -339,7 +326,7 @@ test "can detach Context from a thread" {
 test "detach Context restores prior context" {
     clearCurrentContext();
 
-    if (getCurrentContext().*) |_| {
+    if (getCurrentContext()) |_| {
         std.debug.panic("current context shouldn't be set yet", .{});
     }
 
@@ -353,7 +340,7 @@ test "detach Context restores prior context" {
     ctx2.setValue("test2", ContextValue{ .value = "test_value2" });
     var guard2 = ctx2.attach();
 
-    if (getCurrentContext().*) |curr_ctx| {
+    if (getCurrentContext()) |curr_ctx| {
         const value = curr_ctx.getValue("test2").?;
         try std.testing.expectEqualStrings(value.value, "test_value2");
     } else {
@@ -363,15 +350,15 @@ test "detach Context restores prior context" {
     guard2.detach();
 
     // current context should have been reset back to the first context
-    if (getCurrentContext().*) |curr_ctx| {
-        const value = curr_ctx.getValue("test1").?;
+    if (getCurrentContext()) |curr_ctx| {
+        const value = curr_ctx.*.getValue("test1").?;
         try std.testing.expectEqualStrings(value.value, "test_value1");
     } else {
         std.debug.panic("current context should now be set", .{});
     }
 
     guard1.detach();
-    if (getCurrentContext().*) |_| {
+    if (getCurrentContext()) |_| {
         std.debug.panic("current context should have been unset by detach", .{});
     }
 }
