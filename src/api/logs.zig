@@ -56,7 +56,7 @@ pub const LoggerProvider = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getLoggerImpl(
@@ -113,7 +113,7 @@ pub const Logger = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn emitImpl(pointer: *anyopaque, log_record: LogRecord) void {

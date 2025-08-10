@@ -34,11 +34,11 @@ pub fn build(b: *std.Build) void {
     });
 
     // Create a zig module for our library
-    _ = b.addModule("opentelemetry-api", .{
+    const api_module = b.addModule("opentelemetry-api", .{
         .root_source_file = b.path("src/api/root.zig"),
     });
 
-    _ = b.addModule("opentelemetry-sdk", .{
+    const sdk_module = b.addModule("opentelemetry-sdk", .{
         .root_source_file = b.path("src/sdk/root.zig"),
     });
 
@@ -47,8 +47,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    sdk_lib.root_module.addImport("oasis", oasis.module("oasis"));
-    sdk_lib.root_module.addImport("opentelemetry-api", &api_lib.root_module);
+    sdk_module.addImport("oasis", oasis.module("oasis"));
+    sdk_module.addImport("opentelemetry-api", api_module);
 
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
@@ -69,7 +69,7 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
     sdk_lib_unit_tests.root_module.addImport("oasis", oasis.module("oasis"));
-    sdk_lib_unit_tests.root_module.addImport("opentelemetry-api", &api_lib.root_module);
+    sdk_lib_unit_tests.root_module.addImport("opentelemetry-api", api_lib.root_module);
 
     const run_api_lib_unit_tests = b.addRunArtifact(api_lib_unit_tests);
     const run_sdk_lib_unit_tests = b.addRunArtifact(sdk_lib_unit_tests);
@@ -89,8 +89,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    example_logs_exe.root_module.addImport("opentelemetry-api", &api_lib.root_module);
-    example_logs_exe.root_module.addImport("opentelemetry-sdk", &sdk_lib.root_module);
+    example_logs_exe.root_module.addImport("opentelemetry-api", api_lib.root_module);
+    example_logs_exe.root_module.addImport("opentelemetry-sdk", sdk_lib.root_module);
     b.installArtifact(example_logs_exe);
 
     const example_metrics_exe = b.addExecutable(.{
@@ -99,8 +99,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    example_metrics_exe.root_module.addImport("opentelemetry-api", &api_lib.root_module);
-    example_metrics_exe.root_module.addImport("opentelemetry-sdk", &sdk_lib.root_module);
+    example_metrics_exe.root_module.addImport("opentelemetry-api", api_lib.root_module);
+    example_metrics_exe.root_module.addImport("opentelemetry-sdk", sdk_lib.root_module);
     b.installArtifact(example_metrics_exe);
 
     const example_traces_exe = b.addExecutable(.{
@@ -109,8 +109,8 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    example_traces_exe.root_module.addImport("opentelemetry-api", &api_lib.root_module);
-    example_traces_exe.root_module.addImport("opentelemetry-sdk", &sdk_lib.root_module);
+    example_traces_exe.root_module.addImport("opentelemetry-api", api_lib.root_module);
+    example_traces_exe.root_module.addImport("opentelemetry-sdk", sdk_lib.root_module);
     b.installArtifact(example_traces_exe);
 
     const run_logs_example_exe = b.addRunArtifact(example_logs_exe);
