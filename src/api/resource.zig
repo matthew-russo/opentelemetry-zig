@@ -1,3 +1,5 @@
+pub const std = @import("std");
+
 pub const attribute = @import("attribute.zig");
 
 pub const Resource = struct {
@@ -6,23 +8,23 @@ pub const Resource = struct {
     ptr: *anyopaque,
 
     emptyFn: *const fn () Self,
-    createFn: *const fn ([]const attribute.Attribute, ?[]const u8) Self,
+    createFn: *const fn (std.StringHashMap(attribute.AttributeValue), ?[]const u8) Self,
     mergeFn: *const fn (*anyopaque, Self) Self,
-    retrieveFn: *const fn (*anyopaque) []const attribute.Attribute,
+    retrieveFn: *const fn (*anyopaque) std.StringHashMap(attribute.AttributeValue),
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn emptyImpl() Self {
                 return @call(.always_inline, ptr_info.pointer.child.empty, .{});
             }
 
-            pub fn createImpl(attributes: []const attribute.Attribute, schema_url: ?[]const u8) Self {
+            pub fn createImpl(attributes: std.StringHashMap(attribute.AttributeValue), schema_url: ?[]const u8) Self {
                 return @call(.always_inline, ptr_info.pointer.child.create, .{ attributes, schema_url });
             }
 
@@ -50,7 +52,7 @@ pub const Resource = struct {
         return self.emptyFn();
     }
 
-    pub fn create(self: *Self, attributes: []attribute.Attribute, schema_url: ?[]const u8) Self {
+    pub fn create(self: *Self, attributes: std.StringHashMap(attribute.AttributeValue), schema_url: ?[]const u8) Self {
         return self.createFn(attributes, schema_url);
     }
 
@@ -58,7 +60,7 @@ pub const Resource = struct {
         return updating.mergeFn(updating.ptr, old);
     }
 
-    pub fn retrieve(self: *Self) []const attribute.Attribute {
+    pub fn retrieve(self: *Self) std.StringHashMap(attribute.AttributeValue) {
         return self.retrieveFn(self.ptr);
     }
 };

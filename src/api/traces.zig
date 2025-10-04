@@ -14,7 +14,7 @@ pub const TracerProvider = struct {
         []const u8,
         ?[]const u8,
         ?[]const u8,
-        []attribute.Attribute,
+        std.StringHashMap(attribute.AttributeValue),
     ) Tracer,
 
     destroyTracerFn: *const fn (*anyopaque, Tracer) void,
@@ -26,7 +26,7 @@ pub const TracerProvider = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getTracerImpl(
@@ -34,7 +34,7 @@ pub const TracerProvider = struct {
                 name: []const u8,
                 version: ?[]const u8,
                 schema_url: ?[]const u8,
-                attributes: []attribute.Attribute,
+                attributes: std.StringHashMap(attribute.AttributeValue),
             ) Tracer {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.pointer.child.getTracer, .{ self, name, version, schema_url, attributes });
@@ -62,7 +62,7 @@ pub const TracerProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []attribute.Attribute,
+        attributes: std.StringHashMap(attribute.AttributeValue),
     ) Tracer {
         return self.getTracerFn(self.ptr, name, version, schema_url, attributes);
     }
@@ -94,7 +94,7 @@ pub const Tracer = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn createSpanImpl(

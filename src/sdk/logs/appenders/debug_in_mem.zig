@@ -18,7 +18,7 @@ pub const InMemoryLoggerProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []otel_api.attribute.Attribute,
+        attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
     ) otel_api.logs.Logger {
         // TODO [matthew-russo] handle allocation errors
         const logger = self.allocator.create(InMemoryLogger) catch unreachable;
@@ -47,7 +47,7 @@ pub const InMemoryLogger = struct {
     name: []const u8,
     version: ?[]const u8,
     schema_url: ?[]const u8,
-    attributes: []otel_api.attribute.Attribute,
+    attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
 
     logs: std.ArrayList(otel_api.logs.LogRecord),
 
@@ -56,7 +56,7 @@ pub const InMemoryLogger = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []otel_api.attribute.Attribute,
+        attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
     ) Self {
         return Self{
             .allocator = allocator,
@@ -64,18 +64,18 @@ pub const InMemoryLogger = struct {
             .version = version,
             .schema_url = schema_url,
             .attributes = attributes,
-            .logs = std.ArrayList(otel_api.logs.LogRecord).init(allocator),
+            .logs = std.ArrayList(otel_api.logs.LogRecord).empty,
         };
     }
 
     fn deinit(self: *Self) void {
-        self.logs.deinit();
+        self.logs.deinit(self.allocator);
     }
 
     pub fn emit(self: *Self, log_record: otel_api.logs.LogRecord) void {
         // TODO [matthew-russo 09-01-24] handle error
         // TODO [matthew-russo 09-01-24] merge the self params with log_record?
-        self.logs.append(log_record) catch unreachable;
+        self.logs.append(self.allocator, log_record) catch unreachable;
     }
 
     pub fn getEmittedLogs(self: *Self) []otel_api.logs.LogRecord {

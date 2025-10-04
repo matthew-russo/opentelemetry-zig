@@ -13,10 +13,3 @@ pub const AttributeValue = union(enum) {
     primitive: AttributePrimitive,
     array: []AttributePrimitive,
 };
-
-pub const Attribute = struct {
-    const Self = @This();
-
-    key: []const u8,
-    value: AttributeValue,
-};

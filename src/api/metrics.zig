@@ -1,3 +1,5 @@
+const std = @import("std");
+
 const attribute = @import("./attribute.zig");
 
 pub const MeterProvider = struct {
@@ -5,14 +7,14 @@ pub const MeterProvider = struct {
 
     ptr: *anyopaque,
 
-    getMeterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, []attribute.Attribute) Meter,
+    getMeterFn: *const fn (*anyopaque, []const u8, ?[]const u8, ?[]const u8, std.StringHashMap(attribute.AttributeValue)) Meter,
 
     pub fn init(ptr: anytype) Self {
         const Ptr = @TypeOf(ptr);
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getMeterImpl(
@@ -20,7 +22,7 @@ pub const MeterProvider = struct {
                 name: []const u8,
                 version: ?[]const u8,
                 schema_url: ?[]const u8,
-                attributes: []attribute.Attribute,
+                attributes: std.StringHashMap(attribute.AttributeValue),
             ) Meter {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.pointer.child.getMeter, .{ self, name, version, schema_url, attributes });
@@ -38,7 +40,7 @@ pub const MeterProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []attribute.Attribute,
+        attributes: std.StringHashMap(attribute.AttributeValue),
     ) Meter {
         return self.getMeterFn(self.ptr, name, version, schema_url, attributes);
     }
@@ -67,7 +69,7 @@ pub const Meter = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn createCounterImpl(
@@ -233,7 +235,7 @@ pub const Meter = struct {
 
 pub const AdvisoryParameter = union(enum) {
     explicit_bucket_boundaries: []const f64,
-    attributes: []const attribute.Attribute,
+    attributes: std.StringHashMap(attribute.AttributeValue),
 };
 
 pub const Kind = enum {
@@ -260,7 +262,7 @@ pub const Counter = struct {
     instrument: Instrument,
     value: u64,
 
-    pub fn add(self: Self, to_add: u64, attrs: ?[]const attribute.Attribute) void {
+    pub fn add(self: Self, to_add: u64, attrs: ?[]const attribute.AttributeValue) void {
         _ = self;
         _ = to_add;
         _ = attrs;
@@ -280,7 +282,7 @@ pub const UpDownCounter = struct {
     instrument: Instrument,
     value: u64,
 
-    pub fn add(self: Self, to_add: i64, attrs: ?[]const attribute.Attribute) void {
+    pub fn add(self: Self, to_add: i64, attrs: ?[]const attribute.AttributeValue) void {
         _ = self;
         _ = to_add;
         _ = attrs;
@@ -293,7 +295,7 @@ pub const AsyncUpDownCounter = struct {
     instrument: Instrument,
     value: u64,
 
-    pub fn add(self: Self, to_add: i64, attrs: ?[]const attribute.Attribute) void {
+    pub fn add(self: Self, to_add: i64, attrs: ?[]const attribute.AttributeValue) void {
         _ = self;
         _ = to_add;
         _ = attrs;
@@ -306,7 +308,7 @@ pub const Histogram = struct {
     instrument: Instrument,
     value: u64,
 
-    pub fn record(self: Self, to_record: u64, attrs: ?[]const attribute.Attribute) void {
+    pub fn record(self: Self, to_record: u64, attrs: ?[]const attribute.AttributeValue) void {
         _ = self;
         _ = to_record;
         _ = attrs;
@@ -319,7 +321,7 @@ pub const Gauge = struct {
     instrument: Instrument,
     value: u64,
 
-    pub fn record(self: Self, to_record: u64, attrs: ?[]const attribute.Attribute) void {
+    pub fn record(self: Self, to_record: u64, attrs: ?[]const attribute.AttributeValue) void {
         _ = self;
         _ = to_record;
         _ = attrs;

@@ -18,7 +18,7 @@ pub const StdoutLoggerProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []otel_api.attribute.Attribute,
+        attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
     ) otel_api.logs.Logger {
         // TODO [matthew-russo] handle allocation errors
         const logger = self.allocator.create(StdoutLogger) catch unreachable;
@@ -47,14 +47,14 @@ pub const StdoutLogger = struct {
     name: []const u8,
     version: ?[]const u8,
     schema_url: ?[]const u8,
-    attributes: []otel_api.attribute.Attribute,
+    attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
 
     fn init(
         allocator: std.mem.Allocator,
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []otel_api.attribute.Attribute,
+        attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
     ) Self {
         return Self{
             .allocator = allocator,

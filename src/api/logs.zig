@@ -13,7 +13,7 @@ pub const LoggerProvider = struct {
         []const u8,
         ?[]const u8,
         ?[]const u8,
-        []attribute.Attribute,
+        std.StringHashMap(attribute.AttributeValue),
     ) Logger,
 
     destroyLoggerFn: *const fn (*anyopaque, Logger) void,
@@ -23,7 +23,7 @@ pub const LoggerProvider = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn getLoggerImpl(
@@ -31,7 +31,7 @@ pub const LoggerProvider = struct {
                 name: []const u8,
                 version: ?[]const u8,
                 schema_url: ?[]const u8,
-                attributes: []attribute.Attribute,
+                attributes: std.StringHashMap(attribute.AttributeValue),
             ) Logger {
                 const self: Ptr = @ptrCast(@alignCast(pointer));
                 return @call(.always_inline, ptr_info.pointer.child.getLogger, .{ self, name, version, schema_url, attributes });
@@ -58,7 +58,7 @@ pub const LoggerProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []attribute.Attribute,
+        attributes: std.StringHashMap(attribute.AttributeValue),
     ) Logger {
         return self.getLoggerFn(self.ptr, name, version, schema_url, attributes);
     }
@@ -80,7 +80,7 @@ pub const Logger = struct {
         const ptr_info = @typeInfo(Ptr);
 
         if (ptr_info != .pointer) @compileError("ptr must be a pointer");
-        if (ptr_info.pointer.size != .One) @compileError("ptr must be a single item pointer");
+        if (ptr_info.pointer.size != .one) @compileError("ptr must be a single item pointer");
 
         const gen = struct {
             pub fn emitImpl(pointer: *anyopaque, log_record: LogRecord) void {
@@ -112,13 +112,8 @@ pub const LogType = union(enum) {
 
     pub fn format(
         self: LogType,
-        comptime fmt: []const u8,
-        options: std.fmt.FormatOptions,
-        writer: anytype,
+        writer: *std.Io.Writer,
     ) !void {
-        _ = fmt;
-        _ = options;
-
         switch (self) {
             .string => |s| try writer.print("{s}", .{s}),
             .boolean => |b| try writer.print("{any}", .{b}),

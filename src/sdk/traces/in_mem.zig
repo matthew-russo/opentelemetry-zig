@@ -18,7 +18,7 @@ pub const InMemoryTracerProvider = struct {
         name: []const u8,
         version: ?[]const u8,
         schema_url: ?[]const u8,
-        attributes: []otel_api.attribute.Attribute,
+        attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
     ) otel_api.traces.Tracer {
         // TODO [matthew-russo] handle allocation errors
         const tracer = self.allocator.create(InMemoryTracer) catch unreachable;
@@ -47,7 +47,7 @@ pub const InMemoryTracer = struct {
     name: []const u8,
     version: ?[]const u8,
     schema_url: ?[]const u8,
-    attributes: []otel_api.attribute.Attribute,
+    attributes: std.StringHashMap(otel_api.attribute.AttributeValue),
 
     pub fn createSpan(
         self: *Self,

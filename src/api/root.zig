@@ -28,5 +28,13 @@ pub var options: Options = if (@hasDecl(root, "otel_options")) root.otel_options
 };
 
 test {
-    std.testing.refAllDeclsRecursive(@This());
+    std.testing.refAllDeclsRecursive(attribute);
+    std.testing.refAllDeclsRecursive(baggage);
+    std.testing.refAllDeclsRecursive(context);
+    // std.testing.refAllDeclsRecursive(global);
+    std.testing.refAllDeclsRecursive(logs);
+    std.testing.refAllDeclsRecursive(metrics);
+    // std.testing.refAllDeclsRecursive(resource);
+    // std.testing.refAllDeclsRecursive(span);
+    // std.testing.refAllDeclsRecursive(traces);
 }

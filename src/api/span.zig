@@ -170,14 +170,26 @@ pub const Kind = enum {
 };
 
 pub const Link = struct {
+    const Self = @This();
+
     ctx: SpanContext,
-    attrs: []attribute.Attribute,
+    attrs: std.StringHashMap(attribute.AttributeValue),
+
+    pub fn deinit(self: *Self) void {
+        self.attrs.deinit();
+    }
 };
 
 pub const Event = struct {
+    const Self = @This();
+
     name: []const u8,
     timestamp: u64,
-    attrs: []const attribute.Attribute,
+    attrs: std.StringHashMap(attribute.AttributeValue),
+
+    pub fn deinit(self: *Self) void {
+        self.attrs.deinit();
+    }
 };
 
 pub const Status = union(enum) {
@@ -202,7 +214,7 @@ pub const Span = struct {
     kind: Kind,
     start: u64,
     end: u64,
-    attrs: std.ArrayList(attribute.Attribute),
+    attrs: std.StringHashMap(attribute.AttributeValue),
     links: std.ArrayList(Link),
     events: std.ArrayList(Event),
     status: Status,
@@ -223,17 +235,59 @@ pub const Span = struct {
             .kind = Kind.internal,
             .start = start,
             .end = 0,
-            .attrs = std.ArrayList(attribute.Attribute).init(allocator),
-            .links = std.ArrayList(Link).init(allocator),
-            .events = std.ArrayList(Event).init(allocator),
+            .attrs = std.StringHashMap(attribute.AttributeValue).init(allocator),
+            .links = std.ArrayList(Link).empty,
+            .events = std.ArrayList(Event).empty,
             .status = Status.unset,
         };
     }
 
     pub fn deinit(self: *Self) void {
         self.attrs.deinit();
-        self.links.deinit();
-        self.events.deinit();
+        self.links.deinit(self.allocator);
+
+        for (self.events.items) |*event| {
+            event.deinit();
+        }
+        self.events.deinit(self.allocator);
+    }
+
+    pub fn endNow(self: *Self) void {
+        self.endAt(oasis.time.nanosSinceEpoch());
+    }
+
+    pub fn endAt(self: *Self, timestamp: u64) void {
+        self.end = timestamp;
+    }
+
+    pub fn isRecording(self: *const Self) bool {
+        return oasis.time.nanosSinceEpoch() < self.end;
+    }
+
+    pub fn setStatus(self: *Self, status: Status) void {
+        self.status = status;
+    }
+
+    pub fn setAttribute(self: *Self, name: []const u8, value: attribute.AttributeValue) void {
+        // TODO handle OOMs
+        self.attrs.put(name, value) catch unreachable;
+    }
+
+    pub fn addEvent(self: *Self, name: []const u8, attrs: std.StringHashMap(attribute.AttributeValue), timestamp: ?u64) void {
+        const event = Event{
+            .name = name,
+            .timestamp = if (timestamp) |ts| ts else oasis.time.nanosSinceEpoch(),
+            .attrs = attrs,
+        };
+        self.events.append(self.allocator, event) catch unreachable;
+    }
+
+    pub fn addLink(self: *Self, ctx: SpanContext, attrs: std.StringHashMap(attribute.AttributeValue)) void {
+        const link = Link{
+            .ctx = ctx,
+            .attrs = attrs,
+        };
+        self.links.append(self.allocator, link) catch unreachable;
     }
 };
 
