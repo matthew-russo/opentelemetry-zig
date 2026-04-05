@@ -18,7 +18,7 @@
     .dependencies = .{
         .oasis = .{
             .url = "https://github.com/matthew-russo/oasis-zig/archive/refs/tags/testing-release.tar.gz",
-            .hash = "12205a592f55a0f0c0667c562e2cbd16752a156a4e5e0a3767dce5c3dd11811a5102",
+            .hash = "oasis-0.0.0-MyVaYJ_0AgD-5LvNgXyusdw94bnJoTW6P2Vs7cK5ZMzL",
         },
 
         // See `zig fetch --save <url>` for a command-line interface for adding dependencies.
